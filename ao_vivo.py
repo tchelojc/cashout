@@ -28,7 +28,7 @@ class BetType(Enum):
     DOUBLE_CHANCE_X2 = "Dupla Chance X2"
     NEXT_GOAL_FAV = "Próximo Gol Favorito"
     OVER_15 = "Mais 1.5 Gols"
-    BOTH_YES = "Ambas Sim & Dupla Chance"   # 🔄 atualizado
+    OVER_25_DC_12 = "Mais 2.5 & Dupla Chance 12"   # <-- NOVO: única dupla chance (12) + over 2.5
     UNDER_15 = "Menos 1.5 Gols"
 
 @dataclass
@@ -78,9 +78,9 @@ class BettingStrategyAnalyzer:
                     wins = first_goal_by_fav
             elif bet_type == BetType.OVER_15:
                 wins = total_goals > 1.5
-            elif bet_type == BetType.BOTH_YES:
-                # Agora protege apenas se ambos marcam E não termina empatado
-                wins = both_scored and (home_goals != away_goals)
+            elif bet_type == BetType.OVER_25_DC_12:
+                # Ganha quando houver mais de 2.5 gols E NÃO EMPATE (ou seja, lateral = 12)
+                wins = (total_goals > 2.5) and (home_goals != away_goals)
             elif bet_type == BetType.UNDER_15:
                 wins = (total_goals < 1.5)
             
@@ -102,29 +102,29 @@ def init_state():
     if 'app_state' not in st.session_state:
         # Odds definidas pelo usuário (atualize o label aqui também)
         default_odds = {
-            "Mais 1.5 & Ambas Não": 6.50,
+            "Mais 1.5 & Ambas Não": 3.50,
             "Resultado 0x0": 7.89,
             "Menos 2.5 & Dupla Chance 1X": 1.85,
             "Dupla Chance X2": 1.91,
             "Próximo Gol Favorito": 1.91,
             "Mais 1.5 Gols": 1.30,
-            "Ambas Sim & Dupla Chance": 1.95,   # 🔄 atualizado
+            "Mais 2.5 & Dupla Chance 12": 2.30,   # 🔄 atualizado
             "Menos 1.5 Gols": 3.25
         }
 
         default_investments = {
-            "Mais 1.5 & Ambas Não": 1.50,
+            "Mais 1.5 & Ambas Não": 1.00,
             "Resultado 0x0": 0.00,
-            "Menos 2.5 & Dupla Chance 1X": 0.00,
-            "Dupla Chance X2": 3.00,
-            "Próximo Gol Favorito": 3.00,
+            "Menos 2.5 & Dupla Chance 1X": 1.00,
+            "Dupla Chance X2": 1.00,
+            "Próximo Gol Favorito": 0.00,
             "Mais 1.5 Gols": 0.00,
-            "Ambas Sim & Dupla Chance": 0.00,   # 🔄 atualizado
-            "Menos 1.5 Gols": 3.00
+            "Mais 2.5 & Dupla Chance 12": 1.00,   # 🔄 atualizado
+            "Menos 1.5 Gols": 1.00
         }
         
         # Banco inicial exato
-        initial_bankroll = 10.50
+        initial_bankroll = 5.00
         
         # Proporções automáticas (investimento relativo ao banco)
         default_proportions = {
@@ -268,7 +268,7 @@ def apply_scenario_based_distribution(selected_scenarios):
         "Dupla Chance X2": 0.0,
         "Próximo Gol Favorito": 0.0,
         "Mais 1.5 Gols": 0.0,
-        "Ambas Sim": 0.0,
+        "Mais 2.5 & Dupla Chance 12": 0.0,
         "Menos 1.5 Gols": 0.0
     }
     
@@ -301,7 +301,7 @@ def apply_scenario_based_distribution(selected_scenarios):
             # Distribui 33% igualmente entre: Ambas Sim, Dupla Chance, Próximo Gol Favorito
             allocation_per_bet = scenario_allocation / 3
             
-            new_proportions[BetType.BOTH_YES.value] += allocation_per_bet
+            new_proportions[BetType.OVER_25_DC_12.value] += allocation_per_bet
             new_proportions[BetType.DOUBLE_CHANCE_X2.value] += allocation_per_bet
             new_proportions[BetType.NEXT_GOAL_FAV.value] += allocation_per_bet
     
