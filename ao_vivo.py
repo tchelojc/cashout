@@ -21,6 +21,7 @@ except ImportError as e:
     dinamico_available = False
 
 # Definindo tipos de apostas
+# --- Novo tipo de aposta ---
 class BetType(Enum):
     OVER_15_BOTH_NO = "Mais 1.5 & Ambas Não"
     EXACT_0_0 = "Resultado 0x0"
@@ -28,8 +29,9 @@ class BetType(Enum):
     DOUBLE_CHANCE_X2 = "Dupla Chance X2"
     NEXT_GOAL_FAV = "Próximo Gol Favorito"
     OVER_15 = "Mais 1.5 Gols"
-    OVER_25_DC_12 = "Mais 2.5 & Dupla Chance 12"   # <-- NOVO: única dupla chance (12) + over 2.5
+    OVER_25_DC_12 = "Mais 2.5 & Dupla Chance 12"
     UNDER_15 = "Menos 1.5 Gols"
+    VITORIA_FAV = "Vitória Favorito"   # <-- 🚀 NOVO
 
 @dataclass
 class Bet:
@@ -82,7 +84,9 @@ class BettingStrategyAnalyzer:
                 # Ganha quando houver mais de 2.5 gols E NÃO EMPATE (ou seja, lateral = 12)
                 wins = (total_goals > 2.5) and (home_goals != away_goals)
             elif bet_type == BetType.UNDER_15:
-                wins = (total_goals < 1.5)
+                wins = (total_goals < 1.5)              
+            elif bet_type == BetType.VITORIA_FAV:
+                wins = home_goals > away_goals   # Favorito = time da casa
             
             if wins:
                 total_return += bet.potential_return
@@ -109,7 +113,8 @@ def init_state():
             "Próximo Gol Favorito": 1.91,
             "Mais 1.5 Gols": 1.30,
             "Mais 2.5 & Dupla Chance 12": 2.30,   # 🔄 atualizado
-            "Menos 1.5 Gols": 3.25
+            "Menos 1.5 Gols": 3.25,
+            "Vitória Favorito": 1.80
         }
 
         default_investments = {
@@ -120,7 +125,8 @@ def init_state():
             "Próximo Gol Favorito": 0.00,
             "Mais 1.5 Gols": 0.00,
             "Mais 2.5 & Dupla Chance 12": 1.00,   # 🔄 atualizado
-            "Menos 1.5 Gols": 1.50
+            "Menos 1.5 Gols": 1.50,
+            "Vitória Favorito": 0.00
         }
         
         # Banco inicial exato
