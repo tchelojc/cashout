@@ -113,18 +113,18 @@ def init_state():
         }
 
         default_investments = {
-            "Mais 1.5 & Ambas Não": 1.00,
+            "Mais 1.5 & Ambas Não": 1.50,
             "Resultado 0x0": 0.00,
-            "Menos 2.5 & Dupla Chance 1X": 1.00,
-            "Dupla Chance X2": 1.00,
+            "Menos 2.5 & Dupla Chance 1X": 4.00,
+            "Dupla Chance X2": 2.00,
             "Próximo Gol Favorito": 0.00,
             "Mais 1.5 Gols": 0.00,
             "Mais 2.5 & Dupla Chance 12": 1.00,   # 🔄 atualizado
-            "Menos 1.5 Gols": 1.00
+            "Menos 1.5 Gols": 1.50
         }
         
         # Banco inicial exato
-        initial_bankroll = 5.00
+        initial_bankroll = 10.00
         
         # Proporções automáticas (investimento relativo ao banco)
         default_proportions = {
