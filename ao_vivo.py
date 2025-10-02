@@ -950,31 +950,38 @@ def render_controls():
         # MANTER APENAS AS RECOMENDAÇÕES INTELIGENTES
         render_intelligent_recommendations()
 
-def render_scenario_analysis():
-    st.subheader("📈 Análise Avançada de Cenários")
+def render_detailed_scenario_analysis():
+    """Renderiza análise detalhada de cenários com tabelas completas"""
+    st.subheader("📈 Análise Avançada de Cenários - DETALHADA")
     
     analyzer = get_analyzer()
+    total_investment = analyzer.get_total_investment()
     
+    # Cenários importantes para análise
     important_scenarios = [
-        ('0x0', 0, 0, None),
-        ('1x0 FAV', 1, 0, True),
-        ('0x1 AZA', 0, 1, False),
-        ('1x1 FAV 1º', 1, 1, True),
-        ('1x1 AZA 1º', 1, 1, False),
-        ('2x0 FAV', 2, 0, True),
-        ('0x2 AZA', 0, 2, False),
-        ('2x1 FAV', 2, 1, True),
-        ('1x2 AZA', 1, 2, False),
-        ('2x2', 2, 2, None),
-        ('3x0 FAV', 3, 0, True),
-        ('0x3 AZA', 0, 3, False)
+        ('0x0', 0, 0, None, "Empate sem gols"),
+        ('1x0 FAV', 1, 0, True, "Vitória do favorito 1x0"),
+        ('0x1 AZA', 0, 1, False, "Vitória do azarão 0x1"),
+        ('1x1 FAV 1º', 1, 1, True, "Empate 1x1 com gol do favorito primeiro"),
+        ('1x1 AZA 1º', 1, 1, False, "Empate 1x1 com gol do azarão primeiro"),
+        ('2x0 FAV', 2, 0, True, "Vitória convincente do favorito"),
+        ('0x2 AZA', 0, 2, False, "Vitória convincente do azarão"),
+        ('2x1 FAV', 2, 1, True, "Vitória do favorito com gol do azarão"),
+        ('1x2 AZA', 1, 2, False, "Vitória do azarão com gol do favorito"),
+        ('2x2', 2, 2, None, "Empate com muitos gols"),
+        ('3x0 FAV', 3, 0, True, "Goleada do favorito"),
+        ('0x3 AZA', 0, 3, False, "Goleada do azarão")
     ]
     
+    # Dados para gráficos
     all_scenario_data = []
     scenario_profits = {}
+    detailed_scenarios = []
     
-    for scenario_name, home_goals, away_goals, first_goal in important_scenarios:
+    for scenario_name, home_goals, away_goals, first_goal, description in important_scenarios:
         result = analyzer.calculate_scenario_profit(home_goals, away_goals, first_goal)
+        
+        # Dados para gráficos
         scenario_data = {
             'Cenário': scenario_name,
             'Placar': f"{home_goals}x{away_goals}",
@@ -982,28 +989,93 @@ def render_scenario_analysis():
             'ROI': result['ROI'],
             'Status': result['Status']
         }
-        
         all_scenario_data.append(scenario_data)
         scenario_profits[scenario_name] = result['Lucro/Prejuízo']
+        
+        # Dados detalhados para tabela
+        detailed_scenario = {
+            'Cenário': scenario_name,
+            'Descrição': description,
+            'Placar': f"{home_goals}x{away_goals}",
+            'Investimento Total': f"R$ {result['Investimento Total']:.2f}",
+            'Retorno Total': f"R$ {result['Retorno Total']:.2f}",
+            'Lucro/Prejuízo': f"R$ {result['Lucro/Prejuízo']:.2f}",
+            'ROI': f"{result['ROI']:.1f}%",
+            'Status': result['Status'],
+            'Apostas Vencedoras': ', '.join(result['Apostas Vencedoras']) if result['Apostas Vencedoras'] else 'Nenhuma',
+            # Versões numéricas para ordenação
+            'Lucro_Num': result['Lucro/Prejuízo'],
+            'ROI_Num': result['ROI'],
+            'Investimento_Num': result['Investimento Total']
+        }
+        detailed_scenarios.append(detailed_scenario)
     
     df_all = pd.DataFrame(all_scenario_data)
+    df_detailed = pd.DataFrame(detailed_scenarios)
     
+    # Métricas principais
+    profitable_scenarios = len([s for s in detailed_scenarios if s['Status'] == '✅ Lucro'])
+    neutral_scenarios = len([s for s in detailed_scenarios if s['Status'] == '⚖️ Equilíbrio'])
+    losing_scenarios = len([s for s in detailed_scenarios if s['Status'] == '❌ Prejuízo'])
+    
+    # 🔥 GRÁFICOS EXISTENTES
     col1, col2 = st.columns(2)
     with col1:
         fig_profit = px.bar(df_all, x='Cenário', y='Lucro/Prejuízo', color='Status',
-                           title='Lucro/Prejuízo por Cenário')
+                           title='Lucro/Prejuízo por Cenário (R$)',
+                           color_discrete_map={'✅ Lucro': '#00FF00', '❌ Prejuízo': '#FF0000', '⚖️ Equilíbrio': '#FFFF00'})
+        fig_profit.update_layout(showlegend=True)
         st.plotly_chart(fig_profit, use_container_width=True, key="grafico_lucro_cenarios")
     
     with col2:
         fig_roi = px.bar(df_all, x='Cenário', y='ROI', color='ROI',
-                        title='ROI por Cenário (%)')
+                        title='ROI por Cenário (%)',
+                        color_continuous_scale='RdYlGn')
         st.plotly_chart(fig_roi, use_container_width=True, key="grafico_roi_cenarios")
     
-    return scenario_profits
+    # 🔥 TABELA DETALHADA COM ANÁLISE POR EXTENSO
+    st.markdown("### 📋 ANÁLISE DETALHADA POR CENÁRIO")
+    
+    # Filtros para a tabela
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        filter_status = st.selectbox("Filtrar por Status:", 
+                                   ["Todos", "✅ Lucro", "❌ Prejuízo", "⚖️ Equilíbrio"])
+    with col2:
+        sort_by = st.selectbox("Ordenar por:", 
+                              ["Cenário", "Lucro/Prejuízo", "ROI", "Investimento Total"])
+    with col3:
+        show_details = st.checkbox("Mostrar análise detalhada", value=True)
+    
+    # Aplicar filtros
+    filtered_df = df_detailed.copy()
+    if filter_status != "Todos":
+        filtered_df = filtered_df[filtered_df['Status'] == filter_status]
+    
+    # Ordenar usando as colunas numéricas
+    sort_mapping = {
+        "Cenário": "Cenário",
+        "Lucro/Prejuízo": "Lucro_Num",
+        "ROI": "ROI_Num", 
+        "Investimento Total": "Investimento_Num"
+    }
+    
+    if sort_by in sort_mapping:
+        sort_column = sort_mapping[sort_by]
+        ascending = sort_by != "Lucro/Prejuízo"  # Ordenar Lucro/Prejuízo em ordem decrescente
+        filtered_df = filtered_df.sort_values(sort_column, ascending=ascending)
+    
+    # Exibir tabela detalhada (apenas colunas de exibição)
+    display_columns = ['Cenário', 'Descrição', 'Placar', 'Investimento Total', 
+                      'Retorno Total', 'Lucro/Prejuízo', 'ROI', 'Status', 'Apostas Vencedoras']
+    
+    st.dataframe(
+        filtered_df[display_columns],
+        use_container_width=True,
+        height=400
+    )
 
-# =============================================
-# 🤖 INTEGRAÇÃO COM MÓDULO DINAMICO (CORRIGIDA)
-# =============================================
+    return scenario_profits
 
 def render_dinamico_integration():
     """Renderiza a integração com o módulo dinamico"""
@@ -1069,7 +1141,8 @@ def main_optimized():
         render_controls()
     
     with tab3:
-        render_scenario_analysis()
+        # Substituir a função antiga pela nova detalhada
+        render_detailed_scenario_analysis()
     
     with tab4:
         render_dinamico_integration()
