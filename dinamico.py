@@ -8,6 +8,8 @@ from typing import Dict, List, Tuple, Optional
 import numpy as np
 from datetime import datetime
 import json
+import gspread
+from google.oauth2.service_account import Credentials
 
 # =============================
 # ENUMS E DATACLASSES SINCRONIZADOS
@@ -812,6 +814,79 @@ Baseado no **GOL DO FAVORITO** aos {minute}' (Placar: {current_score}), forneça
         return prompt
 
 # =============================
+# CONFIGURAÇÃO DO GOOGLE SHEETS
+# =============================
+
+SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1VN55T_2FykOZEL2WJab2HObV9BlNGpqCRaQoAgBUIAo/edit?usp=sharing"
+TAB_NAME_DYNAMIC = "Plataforma"
+CREDENTIALS_FILE = r"C:\Users\Marcelo\Downloads\chaves google\credenciais.json"
+
+def init_google_sheets_dynamic():
+    """Inicializa conexão com Google Sheets para operações dinâmicas"""
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=scope)
+        client = gspread.authorize(creds)
+        spreadsheet = client.open_by_url(SPREADSHEET_URL)
+        
+        try:
+            worksheet = spreadsheet.worksheet(TAB_NAME_DYNAMIC)
+        except gspread.exceptions.WorksheetNotFound:
+            worksheet = spreadsheet.add_worksheet(title=TAB_NAME_DYNAMIC, rows="1000", cols="50")
+            headers = [
+                "Data/Hora", "Operação_ID", "Cenário", "Perfil_Risco", "Estratégia",
+                "Confiança", "Total_Investimento", "Total_Hedge", "Lucro_Esperado",
+                "Proteção_Azarão_R$", "Proteção_Azarão_%", "Placar", "Minuto",
+                "Evento", "Momentum", "Status", "Apostas_Aplicadas", "Insights_IA",
+                "Plano_Ação", "Prompt_Completo"
+            ]
+            worksheet.update('A1:T1', [headers])
+        
+        return worksheet
+    except Exception as e:
+        st.error(f"Erro na conexão Google Sheets Dinâmico: {str(e)}")
+        return None
+
+def salvar_operacao_dinamica_sheets(worksheet, operation: OperationMemory):
+    """Salva operação dinâmica no Google Sheets"""
+    try:
+        # Calcular métricas
+        total_hedge = sum(b.amount for b in operation.hedge_bets)
+        azarao_investment = sum(b.amount for b in operation.hedge_bets if "Mais 0,5 Gols Azarão" in b.bet_type)
+        azarao_percentage = (azarao_investment / total_hedge * 100) if total_hedge > 0 else 0
+        expected_profit = sum(b.amount * b.odds for b in operation.hedge_bets) - total_hedge
+        
+        # Preparar dados
+        row = [
+            operation.timestamp.strftime("%d/%m/%Y %H:%M:%S"),
+            operation.operation_id,
+            operation.scenario,
+            operation.ia_analysis.profile.value if operation.ia_analysis else "N/A",
+            operation.ia_analysis.recommended_strategy if operation.ia_analysis else "N/A",
+            operation.ia_analysis.confidence if operation.ia_analysis else 0,
+            operation.total_investment,
+            total_hedge,
+            expected_profit,
+            azarao_investment,
+            azarao_percentage,
+            operation.match_context.current_score if operation.match_context else "0x0",
+            operation.match_context.minute if operation.match_context else 0,
+            operation.match_context.event_type.value if operation.match_context else "N/A",
+            operation.match_context.momentum if operation.match_context else "N/A",
+            operation.status.value,
+            len(operation.hedge_bets),
+            " | ".join(operation.ia_analysis.key_insights) if operation.ia_analysis else "",
+            " | ".join(operation.ia_analysis.action_plan) if operation.ia_analysis else "",
+            operation.ia_analysis.comprehensive_prompt[:100] + "..." if operation.ia_analysis and operation.ia_analysis.comprehensive_prompt else ""
+        ]
+        
+        worksheet.append_row(row)
+        return True
+    except Exception as e:
+        st.error(f"Erro ao salvar operação dinâmica: {str(e)}")
+        return False
+
+# =============================
 # SISTEMA DE MEMÓRIA SINCRONIZADO
 # =============================
 
@@ -820,6 +895,23 @@ class OperationMemoryManager:
         self.operations: List[OperationMemory] = []
         self.current_operation_id = None
         self.worksheet = None
+        self._init_sheets_connection()
+    
+    def _init_sheets_connection(self):
+        """Inicializa conexão com Google Sheets com verificação robusta"""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                self.worksheet = init_google_sheets_dynamic()
+                if self.worksheet:
+                    st.success("✅ Conexão Google Sheets estabelecida com sucesso!")
+                    break
+                else:
+                    st.warning(f"⚠️ Tentativa {attempt + 1}/{max_retries}: Google Sheets não disponível")
+            except Exception as e:
+                st.warning(f"⚠️ Tentativa {attempt + 1}/{max_retries} falhou: {e}")
+                if attempt == max_retries - 1:
+                    st.error("❌ Falha na conexão com Google Sheets após múltiplas tentativas")
                     
     def start_new_operation(self, scenario: str, profits: Dict[str, float], total_investment: float, match_context: MatchContext = None) -> str:
         """Inicia uma nova operação com ID único e sincronização"""
