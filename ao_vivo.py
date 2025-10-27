@@ -1,4 +1,4 @@
-# ao_vivo.py (VERSÃO COMPLETA COM SISTEMA DE RECOMENDAÇÕES RESTAURADO)
+# ao_vivo.py (VERSÃO COMPLETA COM SISTEMA CONQUISTADOR INTEGRADO + MAIS 0,5 GOLS AZARÃO)
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -25,6 +25,8 @@ class BetType(Enum):
     OVER_25_DC_12 = "Mais 2.5 & Dupla Chance 12"
     UNDER_15 = "Menos 1.5 Gols"
     VITORIA_FAV = "Vitória Favorito"
+    # NOVA APOSTA IMPLEMENTADA
+    OVER_05_AZARAO = "Mais 0,5 Gols Azarão"
 
 @dataclass
 class Bet:
@@ -41,11 +43,160 @@ class Bet:
         return (1 / self.odds) * 100 if self.odds > 0 else 0
 
 # =============================================
-# 🔧 FUNÇÃO INIT_STATE CORRIGIDA
+# 🔄 SISTEMA DE DISTRIBUIÇÕES OTIMIZADAS
+# =============================================
+
+class DistribuicaoManager:
+    """Gerenciador de distribuições integrado com o Sistema Conquistador"""
+    
+    def __init__(self):
+        self.distribuicoes = self._criar_distribuicoes_conquistador()
+        self.distribuicao_ativa = None
+    
+    def _criar_distribuicoes_conquistador(self) -> Dict[str, Dict]:
+        """Cria distribuições alinhadas com o Sistema Conquistador"""
+        return {
+            "REFERENCIA_OTIMIZADA": self._criar_referencia_otimizada(),
+            "ALTO_LUCRO_2W1L": self._criar_alto_lucro_2w1l(),
+            "PROTEGIDA_CONSERVADORA": self._criar_protegida_conservadora(),
+            "AGGRESSIVE_3W1L": self._criar_aggressive_3w1l()
+        }
+    
+    def _criar_referencia_otimizada(self) -> Dict[str, Dict]:
+        """Distribuição base completa do Sistema Conquistador"""
+        return {
+            "0x0": {"nome": "Empate sem gols", "tipo": "PREJUIZO", "retorno": -1.50, "roi": -12.5, "valor_sugerido": 1.00, "protecao": True},
+            "1x0": {"nome": "Vitória do favorito 1x0", "tipo": "LUCRO", "retorno": 2.00, "roi": 16.7, "valor_sugerido": 3.00, "protecao": False},
+            "2x0": {"nome": "Vitória convincente do favorito", "tipo": "LUCRO", "retorno": 6.00, "roi": 50.0, "valor_sugerido": 4.00, "protecao": False},
+            "0x1": {"nome": "Vitória do azarão 0x1", "tipo": "PREJUIZO", "retorno": -0.50, "roi": -4.2, "valor_sugerido": 1.50, "protecao": True},
+            "1x1": {"nome": "Empate 1x1", "tipo": "PREJUIZO", "retorno": -2.00, "roi": -16.7, "valor_sugerido": 1.00, "protecao": True},
+            "2x1": {"nome": "Vitória do favorito com gol do azarão", "tipo": "LUCRO", "retorno": 2.50, "roi": 20.8, "valor_sugerido": 3.50, "protecao": True},
+            "1x2": {"nome": "Vitória do azarão com gol do favorito", "tipo": "LUCRO", "retorno": 3.00, "roi": 25.0, "valor_sugerido": 3.50, "protecao": True},
+            "2x2": {"nome": "Empate com muitos gols", "tipo": "PREJUIZO", "retorno": -2.00, "roi": -16.7, "valor_sugerido": 1.00, "protecao": True},
+            "3x0": {"nome": "Goleada do favorito", "tipo": "LUCRO", "retorno": 6.00, "roi": 50.0, "valor_sugerido": 4.00, "protecao": False},
+            "0x2": {"nome": "Vitória convincente do azarão", "tipo": "LUCRO", "retorno": 4.50, "roi": 37.5, "valor_sugerido": 3.50, "protecao": True},
+        }
+
+    def _criar_alto_lucro_2w1l(self) -> Dict[str, Dict]:
+        """Distribuição Alto Lucro 2W1L - Foco em retornos altos"""
+        return {
+            "2x0": {"nome": "Vitória convincente do favorito", "tipo": "LUCRO", "retorno": 8.50, "roi": 70.8, "valor_sugerido": 4.50, "protecao": False},
+            "3x0": {"nome": "Goleada do favorito", "tipo": "LUCRO", "retorno": 8.50, "roi": 70.8, "valor_sugerido": 4.50, "protecao": False},
+            "0x2": {"nome": "Vitória do azarão", "tipo": "LUCRO", "retorno": 6.20, "roi": 51.7, "valor_sugerido": 4.00, "protecao": True},
+            "1x0": {"nome": "Vitória simples do favorito", "tipo": "LUCRO", "retorno": 3.20, "roi": 26.7, "valor_sugerido": 3.00, "protecao": False},
+            "2x1": {"nome": "Vitória favorito com gol contra", "tipo": "LUCRO", "retorno": 4.50, "roi": 37.5, "valor_sugerido": 4.00, "protecao": True},
+            "0x0": {"nome": "Empate sem gols", "tipo": "PREJUIZO", "retorno": -4.50, "roi": -37.5, "valor_sugerido": 1.00, "protecao": True},
+            "1x1": {"nome": "Empate 1x1", "tipo": "PREJUIZO", "retorno": -6.00, "roi": -50.0, "valor_sugerido": 1.00, "protecao": True},
+        }
+
+    def _criar_protegida_conservadora(self) -> Dict[str, Dict]:
+        """Distribuição Protegida Conservadora - Minimizar riscos"""
+        return {
+            "1x0": {"nome": "Vitória simples do favorito", "tipo": "LUCRO", "retorno": 2.50, "roi": 20.8, "valor_sugerido": 4.00, "protecao": False},
+            "2x0": {"nome": "Vitória do favorito", "tipo": "LUCRO", "retorno": 4.00, "roi": 33.3, "valor_sugerido": 4.00, "protecao": False},
+            "2x1": {"nome": "Vitória favorito com gol contra", "tipo": "LUCRO", "retorno": 3.00, "roi": 25.0, "valor_sugerido": 4.00, "protecao": True},
+            "0x1": {"nome": "Vitória do azarão", "tipo": "LUCRO", "retorno": 3.00, "roi": 25.0, "valor_sugerido": 3.00, "protecao": True},
+            "0x0": {"nome": "Empate sem gols", "tipo": "PREJUIZO", "retorno": -2.50, "roi": -20.8, "valor_sugerido": 2.00, "protecao": True},
+            "1x1": {"nome": "Empate 1x1", "tipo": "PREJUIZO", "retorno": -3.00, "roi": -25.0, "valor_sugerido": 2.00, "protecao": True},
+        }
+
+    def _criar_aggressive_3w1l(self) -> Dict[str, Dict]:
+        """Distribuição Aggressive 3W1L - Máximo potencial"""
+        return {
+            "2x0": {"nome": "Vitória do favorito", "tipo": "LUCRO", "retorno": 10.00, "roi": 83.3, "valor_sugerido": 4.00, "protecao": False},
+            "3x0": {"nome": "Goleada do favorito", "tipo": "LUCRO", "retorno": 10.00, "roi": 83.3, "valor_sugerido": 4.00, "protecao": False},
+            "0x2": {"nome": "Vitória do azarão", "tipo": "LUCRO", "retorno": 8.00, "roi": 66.7, "valor_sugerido": 4.00, "protecao": True},
+            "1x0": {"nome": "Vitória simples favorito", "tipo": "LUCRO", "retorno": 5.00, "roi": 41.7, "valor_sugerido": 4.00, "protecao": False},
+            "0x0": {"nome": "Empate sem gols", "tipo": "PREJUIZO", "retorno": -8.00, "roi": -66.7, "valor_sugerido": 2.00, "protecao": True},
+            "1x1": {"nome": "Empate 1x1", "tipo": "PREJUIZO", "retorno": -10.00, "roi": -83.3, "valor_sugerido": 2.00, "protecao": True},
+        }
+    
+    def aplicar_distribuicao(self, nome_distribuicao: str, capital_total: float = 20.0) -> Dict[str, Dict]:
+        """Aplica distribuição perfeitamente"""
+        if nome_distribuicao not in self.distribuicoes:
+            raise ValueError(f"Distribuição {nome_distribuicao} não encontrada")
+        
+        distribuicao_base = self.distribuicoes[nome_distribuicao]
+        distribuicao_ajustada = {}
+        
+        # Calcular fator de ajuste
+        total_sugerido = sum(dist['valor_sugerido'] for dist in distribuicao_base.values())
+        fator_ajuste = capital_total / total_sugerido
+        
+        for cenario, dados in distribuicao_base.items():
+            valor_ajustado = dados['valor_sugerido'] * fator_ajuste
+            retorno_ajustado = dados['retorno'] * fator_ajuste
+            
+            distribuicao_ajustada[cenario] = {
+                **dados,
+                'valor_ajustado': round(valor_ajustado, 2),
+                'retorno_ajustado': round(retorno_ajustado, 2),
+                'odd_calculada': round((retorno_ajustado + valor_ajustado) / valor_ajustado, 2) if valor_ajustado > 0 else 1.0
+            }
+        
+        self.distribuicao_ativa = nome_distribuicao
+        return distribuicao_ajustada
+
+# =============================================
+# 🎯 SISTEMA DE APLICAÇÕES COMBINADAS
+# =============================================
+
+class SistemaAplicacoes:
+    def __init__(self):
+        self.aplicacoes_predefinidas = self._criar_aplicacoes()
+    
+    def _criar_aplicacoes(self):
+        return [
+            {
+                "nome": "MAIS 1,5 GOLS + AMBAS NÃO",
+                "mercados": ["Mais 1.5 Gols", "Ambas Marcam - Não"],
+                "descricao": "✅ Cobre vitórias 2x0, 3x0, 4x0, 5x0 (qualquer vitória convincente sem gol do azarão)",
+                "peso_padrao": 0.30
+            },
+            {
+                "nome": "MAIS 2,5 GOLS + FAVORITO", 
+                "mercados": ["Mais 2.5 Gols", "Vitória Favorito"],
+                "descricao": "✅ Cobre vitórias 3x0, 3x1, 4x0, 4x1, 5x0 (vitórias com muitos gols do favorito)",
+                "peso_padrao": 0.35
+            },
+            {
+                "nome": "PROTEÇÃO AZARÃO COMPLETA",
+                "mercados": ["Mais 0,5 Gols Azarão", "Dupla Chance X2"],
+                "descricao": "✅ Cobre empates 1x1, 2x2 e vitórias do azarão 1x0, 2x0, 2x1 (qualquer cenário com azarão marcando ou não perdendo)",
+                "peso_padrao": 0.35
+            }
+        ]
+    
+    def calcular_valores_sugeridos(self, distribuicao_detalhes: Dict, distribuicao_nome: str) -> Dict[str, float]:
+        """Calcula valores sugeridos baseados na distribuição"""
+        if not distribuicao_detalhes:
+            return {app["nome"]: 0.0 for app in self.aplicacoes_predefinidas}
+        
+        capital_total = sum(dados['valor_ajustado'] for dados in distribuicao_detalhes.values())
+        
+        # DEFINIR PESOS POR ESTRATÉGIA
+        pesos = {
+            "REFERENCIA_OTIMIZADA": [0.30, 0.35, 0.35],
+            "ALTO_LUCRO_2W1L": [0.35, 0.40, 0.25],
+            "PROTEGIDA_CONSERVADORA": [0.25, 0.30, 0.45],
+            "AGGRESSIVE_3W1L": [0.40, 0.45, 0.15]
+        }
+        
+        pesos_estrategia = pesos.get(distribuicao_nome, [0.30, 0.35, 0.35])
+        
+        valores_sugeridos = {}
+        for i, aplicacao in enumerate(self.aplicacoes_predefinidas):
+            valor = capital_total * pesos_estrategia[i]
+            valores_sugeridos[aplicacao["nome"]] = round(valor, 2)
+        
+        return valores_sugeridos
+
+# =============================================
+# 🔧 FUNÇÃO INIT_STATE CORRIGIDA COM SISTEMA CONQUISTADOR
 # =============================================
 
 def init_state():
-    """Inicializa o estado da aplicação"""
+    """Inicializa o estado da aplicação com Sistema Conquistador integrado"""
     if 'app_state' not in st.session_state:
         default_odds = {
             "Mais 1.5 & Ambas Não": 3.50,
@@ -56,7 +207,8 @@ def init_state():
             "Mais 1.5 Gols": 1.30,
             "Mais 2.5 & Dupla Chance 12": 2.30,
             "Menos 1.5 Gols": 3.25,
-            "Vitória Favorito": 1.80
+            "Vitória Favorito": 1.80,
+            "Mais 0,5 Gols Azarão": 2.10
         }
 
         default_investments = {
@@ -68,11 +220,13 @@ def init_state():
             "Mais 1.5 Gols": 0.00,
             "Mais 2.5 & Dupla Chance 12": 1.50,
             "Menos 1.5 Gols": 1.00,
-            "Vitória Favorito": 1.00
+            "Vitória Favorito": 1.00,
+            "Mais 0,5 Gols Azarão": 1.50
         }
         
         initial_bankroll = sum(default_investments.values())
         
+        # ✅ ADICIONAR NOVOS ESTADOS DO SISTEMA CONQUISTADOR
         st.session_state.app_state = {
             'odds_values': default_odds,
             'investment_values': default_investments,
@@ -87,17 +241,40 @@ def init_state():
             'gols_sofridos_favorito': 3,
             'vitorias_azarao': 1,
             'gols_feitos_azarao': 4,
-            'gols_sofridos_azarao': 10
+            'gols_sofridos_azarao': 10,
+            # ✅ NOVOS ESTADOS DO SISTEMA CONQUISTADOR
+            'distribuicao_manager': DistribuicaoManager(),
+            'sistema_aplicacoes': SistemaAplicacoes(),
+            'distribuicao_ativa': None,
+            'distribuicao_detalhes': None,
+            'etapa_atual': 1,
+            'time_casa': "Favorito",
+            'time_fora': "Azarao", 
+            'odd_casa': 1.80,
+            'odd_fora': 4.50,
+            'favorito': "Favorito",
+            'azarao': "Azarao"
         }
         update_proportions_from_investments()
     
-    # Inicializar módulo de hedge se disponível
+    # 🔥 INICIALIZAÇÃO ROBUSTA DO MÓDULO DINÂMICO
     try:
-        from dinamico import init_hedge_state
-        if 'hedge_manager' not in st.session_state:
-            init_hedge_state()
-    except ImportError:
-        st.warning("Módulo dinamico não disponível")
+        # Verificar se o módulo existe
+        import importlib.util
+        spec = importlib.util.find_spec("dinamico")
+        
+        if spec is not None:
+            from dinamico import init_hedge_state
+            if 'hedge_manager' not in st.session_state:
+                init_hedge_state()
+                st.success("✅ Módulo Dinâmico conectado com sucesso!")
+        else:
+            st.session_state.dinamico_available = False
+            st.warning("⚠️ Módulo dinamico.py não encontrado. Funcionalidades de hedge estarão limitadas.")
+            
+    except ImportError as e:
+        st.session_state.dinamico_available = False
+        st.warning(f"⚠️ Módulo dinamico não disponível: {e}")
 
 def update_proportions_from_investments():
     """Atualiza proporções baseadas nos investimentos atuais"""
@@ -288,6 +465,13 @@ def generate_intelligent_prompt(liga, importancia, condicoes, motivacao_fav,
 - **Consistência do Azarão:** {consistencia}
 - **Histórico de Confrontos:** {historico_confronto}
 
+## 🛡️ PROTEÇÃO MAIS 0,5 GOLS AZARÃO
+**ESTRATÉGIA IMPLEMENTADA:** A aposta 'Mais 0,5 Gols Azarão' protege especificamente:
+- ✅ Empates 1x1 onde o azarão marca
+- ✅ Vitórias 2x1 do favorito com gol de honra do azarão  
+- ✅ Resultados como 1x2, 0x1, 0x2 onde azarão marca
+- ✅ Cenários de virada onde azarão surpreende
+
 ## 💰 SITUAÇÃO ATUAL DAS APOSTAS
 
 ### 📈 DISTRIBUIÇÃO DE INVESTIMENTOS
@@ -314,23 +498,23 @@ def generate_intelligent_prompt(liga, importancia, condicoes, motivacao_fav,
 
 Baseado nas estatísticas acima e na distribuição atual, por favor forneça:
 
-### 1. 📊 ANÁLISE DE VALOR
+### 1. 📊 ANÁLISE DE VALOR COM PROTEÇÃO AZARÃO
 - Quais mercados apresentam melhor relação risco-retorno?
-- Identifique oportunidades de value bet
+- Como a proteção 'Mais 0,5 Gols Azarão' impacta o hedge natural?
 - Pontos de sobrevalorização/subvalorização
 
-### 2. ⚖️ OTIMIZAÇÃO DE DISTRIBUIÇÃO
-- Distribuição ideal considerando perfil de risco
+### 2. ⚖️ OTIMIZAÇÃO COM PROTEÇÃO DE EMPATES
+- Distribuição ideal considerando a proteção do azarão
 - Ajustes recomendados nos investimentos
-- Estratégia de hedge natural
+- Estratégia de hedge natural aprimorada
 
-### 3. 🛡️ GESTÃO DE RISCO
-- Principais riscos identificados
+### 3. 🛡️ GESTÃO DE RISCO COM PROTEÇÃO
+- Principais riscos identificados e como a proteção ajuda
 - Cenários críticos e proteções
 - Limites de exposição recomendados
 
-### 4. 📈 ESTRATÉGIA RECOMENDADA
-- Abordagem ideal para esta partida
+### 4. 📈 ESTRATÉGIA RECOMENDADA COM MAIS 0,5 AZARÃO
+- Abordagem ideal para esta partida com proteção
 - Sequência de ações recomendada
 - Pontos de atenção durante o jogo
 
@@ -369,6 +553,9 @@ class ValueBetAnalyzer:
         prob_mais_15_gols = 100 - prob_menos_25_gols
         prob_ambas_marcam = min(55, max(15, (gols_fav_f/10 + gols_aza_f/10) * 25))
         
+        # NOVA PROBABILIDADE PARA MAIS 0,5 GOLS AZARÃO
+        prob_azarao_marca = min(70, max(20, (gols_aza_f/5) * 15 + (gols_fav_s/5) * 10))
+        
         return {
             "prob_vitoria_favorito": prob_vitoria_favorito,
             "prob_empate": prob_empate,
@@ -379,7 +566,9 @@ class ValueBetAnalyzer:
             "prob_0x0": max(3, (100 - prob_mais_15_gols) * 0.4),
             "prob_menos_15_gols": max(8, prob_menos_25_gols * 0.7),
             "prob_mais_25_gols_sem_empate": prob_mais_15_gols * (100 - prob_empate) / 100,
-            "prob_proximo_gol_favorito": prob_vitoria_favorito * 0.6 + prob_empate * 0.3
+            "prob_proximo_gol_favorito": prob_vitoria_favorito * 0.6 + prob_empate * 0.3,
+            # NOVA PROBABILIDADE
+            "prob_mais_05_gols_azarao": prob_azarao_marca
         }
     
     def analisar_valor_apostas(self, investments: Dict, odds: Dict, estatisticas: Dict) -> Dict:
@@ -394,7 +583,9 @@ class ValueBetAnalyzer:
             "Resultado 0x0": "prob_0x0",
             "Menos 1.5 Gols": "prob_menos_15_gols",
             "Mais 2.5 & Dupla Chance 12": "prob_mais_25_gols_sem_empate",
-            "Próximo Gol Favorito": "prob_proximo_gol_favorito"
+            "Próximo Gol Favorito": "prob_proximo_gol_favorito",
+            # NOVA APOSTA MAPEADA
+            "Mais 0,5 Gols Azarão": "prob_mais_05_gols_azarao"
         }
         
         analise_detalhada = {}
@@ -591,7 +782,7 @@ class InvestmentPlanner:
             else: return 16.0
 
 # =============================================
-# 🎯 ANÁLISE DE CENÁRIOS (FUNÇÃO EXISTENTE)
+# 🎯 ANÁLISE DE CENÁRIOS ATUALIZADA
 # =============================================
 
 class BettingStrategyAnalyzer:
@@ -631,6 +822,9 @@ class BettingStrategyAnalyzer:
                 wins = (total_goals < 1.5)
             elif bet_type == BetType.VITORIA_FAV:
                 wins = home_goals > away_goals
+            # NOVA CONDIÇÃO PARA MAIS 0,5 GOLS AZARÃO
+            elif bet_type == BetType.OVER_05_AZARAO:
+                wins = away_goals > 0.5  # Azarão marca pelo menos 1 gol
             
             if wins:
                 total_return += bet.potential_return
@@ -658,14 +852,13 @@ def get_analyzer() -> BettingStrategyAnalyzer:
     return analyzer
 
 # =============================================
-# 🎯 IMPLEMENTAÇÃO DAS MELHORIAS SUGERIDAS
+# 🔧 FUNÇÕES DE SINCRONIZAÇÃO CORRIGIDAS
 # =============================================
+
 def sync_global_state():
     """SINCRONIZAÇÃO GLOBAL - ORDEM MESTRA PARA TODOS OS COMPONENTES"""
-    # 🔥 FORÇAR SINCRONIZAÇÃO DO BANKROLL PRIMEIRO
     sync_bankroll_values()
     
-    # 🔥 ATUALIZAR ANÁLISE DE VALOR
     st.session_state.app_state['last_analysis'] = {
         'total_invested': st.session_state.app_state['total_invested'],
         'total_bankroll': st.session_state.app_state['total_bankroll'],
@@ -673,13 +866,342 @@ def sync_global_state():
         'sync_type': 'GLOBAL_COMMAND'
     }
     
-    # 🔥 MARCAR QUE DISTRIBUIÇÃO FOI APLICADA
     st.session_state.app_state['distribution_applied'] = True
     st.session_state.app_state['global_sync_time'] = datetime.now().isoformat()
 
+def sync_bankroll_values():
+    """Sincroniza todos os valores de bankroll e investimento - VERSÃO CORRIGIDA"""
+    app_state = st.session_state.app_state
+    
+    # 🔥 CALCULAR TOTAL INVESTIDO DIRETO DOS VALORES
+    total_invested = sum(app_state['investment_values'].values())
+    
+    # 🔥 ATUALIZAR O TOTAL INVESTIDO NO ESTADO
+    app_state['total_invested'] = total_invested
+    
+    # 🔥 SE O BANKROLL FOR MENOR QUE O INVESTIDO, ATUALIZAR BANKROLL
+    if app_state['total_bankroll'] < total_invested:
+        app_state['total_bankroll'] = total_invested
+    
+    # 🔥 SE O BANKROLL FOR MUITO MAIOR QUE O INVESTIDO, MANTER O VALOR DO BANKROLL
+    # (permite que o usuário tenha bankroll maior que o investido atual)
+    
+    # 🔥 ATUALIZAR PROPORÇÕES
+    update_proportions_from_investments()
+    
+    # 🔥 LOG PARA VERIFICAR (opcional)
+    app_state['last_sync'] = {
+        'total_invested': total_invested,
+        'total_bankroll': app_state['total_bankroll'],
+        'timestamp': datetime.now().isoformat()
+    }
+
+# =============================================
+# 🔧 FUNÇÃO PARA APLICAR VALORES AUTOMATICAMENTE
+# =============================================
+
+def aplicar_valores_distribuicao_automaticamente(distribuicao_detalhes, distribuicao_nome):
+    """Aplica valores da distribuição automaticamente"""
+    if not distribuicao_detalhes:
+        return
+    
+    sistema_aplicacoes = st.session_state.app_state['sistema_aplicacoes']
+    valores_sugeridos = sistema_aplicacoes.calcular_valores_sugeridos(distribuicao_detalhes, distribuicao_nome)
+    
+    # Limpar valores existentes
+    for mercado in st.session_state.app_state['investment_values']:
+        st.session_state.app_state['investment_values'][mercado] = 0.0
+    
+    # Aplicar valores baseados nas estratégias
+    try:
+        # DEFINIR PESOS POR ESTRATÉGIA
+        pesos = {
+            "REFERENCIA_OTIMIZADA": [0.30, 0.35, 0.35],
+            "ALTO_LUCRO_2W1L": [0.35, 0.40, 0.25],
+            "PROTEGIDA_CONSERVADORA": [0.25, 0.30, 0.45],
+            "AGGRESSIVE_3W1L": [0.40, 0.45, 0.15]
+        }
+        
+        pesos_estrategia = pesos.get(distribuicao_nome, [0.30, 0.35, 0.35])
+        capital_total = sum(dados['valor_ajustado'] for dados in distribuicao_detalhes.values())
+        
+        # Aplicação 1: MAIS 1,5 + AMBAS NÃO
+        valor_app1 = capital_total * pesos_estrategia[0]
+        st.session_state.app_state['investment_values']["Mais 1.5 & Ambas Não"] = round(valor_app1 * 0.7, 2)
+        st.session_state.app_state['investment_values']["Mais 1.5 Gols"] = round(valor_app1 * 0.3, 2)
+        
+        # Aplicação 2: MAIS 2,5 + FAVORITO
+        valor_app2 = capital_total * pesos_estrategia[1]
+        st.session_state.app_state['investment_values']["Mais 2.5 & Dupla Chance 12"] = round(valor_app2 * 0.6, 2)
+        st.session_state.app_state['investment_values']["Vitória Favorito"] = round(valor_app2 * 0.4, 2)
+        
+        # Aplicação 3: PROTEÇÃO AZARÃO
+        valor_app3 = capital_total * pesos_estrategia[2]
+        st.session_state.app_state['investment_values']["Mais 0,5 Gols Azarão"] = round(valor_app3 * 0.6, 2)
+        st.session_state.app_state['investment_values']["Dupla Chance X2"] = round(valor_app3 * 0.4, 2)
+        
+        # Ajustar bankroll
+        total_investido = sum(st.session_state.app_state['investment_values'].values())
+        st.session_state.app_state['total_bankroll'] = total_investido
+        
+        st.success("✅ Valores da distribuição aplicados automaticamente!")
+        
+    except Exception as e:
+        st.error(f"❌ Erro ao aplicar valores: {str(e)}")
+
+# =============================================
+# 🎯 NOVA ABA DE DISTRIBUIÇÕES
+# =============================================
+
+def render_aba_distribuicoes():
+    """Nova aba para sistema de distribuições"""
+    st.header("🎯 Sistema de Distribuições - Estratégias Conquistador")
+    
+    distribuicao_manager = st.session_state.app_state['distribuicao_manager']
+    
+    st.info("""
+    **📊 SISTEMA DE MÚLTIPLAS DISTRIBUIÇÕES**
+    Selecione a estratégia que melhor se adapta ao seu perfil:
+    - 🎯 **Referência Otimizada**: Balanceada (10 cenários)
+    - 🚀 **Alto Lucro 2W1L**: Foco em retornos altos (7 cenários)  
+    - 🛡️ **Protegida Conservadora**: Menor risco (6 cenários)
+    - ⚡ **Aggressive 3W1L**: Máximo potencial (6 cenários)
+    """)
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        distribuicao_selecionada = st.selectbox(
+            "📊 Selecione a Distribuição:",
+            options=list(distribuicao_manager.distribuicoes.keys()),
+            format_func=lambda x: x.replace("_", " ").title(),
+            index=0
+        )
+    
+    with col2:
+        capital_total = st.number_input(
+            "💰 Capital Total (R$)", 
+            min_value=10.0, 
+            value=20.0, 
+            step=1.0
+        )
+    
+    if st.button("🎯 APLICAR DISTRIBUIÇÃO", use_container_width=True, type="primary"):
+        with st.spinner("Aplicando distribuição..."):
+            try:
+                distribuicao = distribuicao_manager.aplicar_distribuicao(distribuicao_selecionada, capital_total)
+                
+                st.session_state.app_state['distribuicao_ativa'] = distribuicao_selecionada
+                st.session_state.app_state['distribuicao_detalhes'] = distribuicao
+                
+                st.success(f"✅ **{distribuicao_selecionada.replace('_', ' ').title()}** aplicada com sucesso!")
+                
+                # Mostrar estatísticas
+                lucros = [d for d in distribuicao.values() if d['tipo'] == 'LUCRO']
+                prejuizos = [d for d in distribuicao.values() if d['tipo'] == 'PREJUIZO']
+                
+                st.success(f"📊 **{len(lucros)}** cenários de lucro | **{len(prejuizos)}** cenários de prejuízo")
+                
+                # Aplicar valores automaticamente
+                aplicar_valores_distribuicao_automaticamente(distribuicao, distribuicao_selecionada)
+                
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Erro: {str(e)}")
+    
+    # MOSTRAR DISTRIBUIÇÃO ATIVA
+    if st.session_state.app_state['distribuicao_ativa']:
+        distribuicao = st.session_state.app_state['distribuicao_detalhes']
+        
+        st.subheader("📋 Detalhes da Distribuição Aplicada")
+        dados_tabela = []
+        for cenario, dados in distribuicao.items():
+            dados_tabela.append({
+                "Cenário": cenario,
+                "Descrição": dados['nome'],
+                "Tipo": "✅ LUCRO" if dados['tipo'] == 'LUCRO' else "⚠️ PREJUÍZO",
+                "Valor Investido (R$)": f"{dados['valor_ajustado']:.2f}",
+                "Retorno Esperado (R$)": f"{dados['retorno_ajustado']:.2f}",
+                "ROI": f"{dados['roi']}%",
+                "Proteção": "✅" if dados['protecao'] else "❌"
+            })
+        
+        df = pd.DataFrame(dados_tabela)
+        st.dataframe(df, use_container_width=True)
+        
+# =============================================
+# 🔧 FUNÇÃO AUXILIAR PARA VERIFICAR CONEXÃO
+# =============================================
+
+def check_dinamico_connection():
+    """Verifica e relata o status da conexão com o módulo dinâmico"""
+    try:
+        from dinamico import DynamicHedgeManager
+        return {
+            "status": "✅ CONECTADO",
+            "message": "Módulo dinâmico totalmente funcional",
+            "features": [
+                "Análise de minutos e odds",
+                "Proteções dinâmicas", 
+                "Sistema pós-gol",
+                "Geração de prompts IA",
+                "Memória de operações"
+            ]
+        }
+    except ImportError:
+        return {
+            "status": "❌ DESCONECTADO", 
+            "message": "Módulo dinamico.py não encontrado",
+            "features": ["Funcionalidades básicas apenas"]
+        }
+    except Exception as e:
+        return {
+            "status": "⚠️ COM ERROS",
+            "message": f"Módulo presente mas com problemas: {e}",
+            "features": ["Funcionalidades limitadas"]
+        }
+
+# =============================================
+# 🔧 RENDER_CONTROLS ATUALIZADO COM SISTEMA CONQUISTADOR + STATUS DINÂMICO
+# =============================================
+
+def render_controls():
+    """Configuração inteligente - VERSÃO ATUALIZADA COM SISTEMA CONQUISTADOR E STATUS DINÂMICO"""
+    
+    # 🔥 STATUS DA CONEXÃO DINÂMICA (NOVO)
+    connection_status = check_dinamico_connection()
+    
+    # 🔥 INDICADOR DE STATUS GLOBAL (EXISTENTE)
+    if st.session_state.app_state.get('distribution_applied'):
+        st.success("✅ **SISTEMA SINCRONIZADO** - Todas as abas mostram valores consistentes")
+    else:
+        st.warning("⚠️ **CLIQUE EM 'DISTRIBUIÇÃO AUTOMÁTICA' PARA SINCRONIZAR**")
+    
+    # 🔥 EXIBIR STATUS DA CONEXÃO DINÂMICA (NOVO)
+    st.info(f"**Status do Módulo Dinâmico:** {connection_status['status']} - {connection_status['message']}")
+    
+    if connection_status['status'] != "✅ CONECTADO":
+        st.warning("""
+        **📋 Para funcionalidades COMPLETAS de hedge dinâmico:**
+        1. Certifique-se de que `dinamico.py` está na mesma pasta
+        2. Reinicie a aplicação  
+        3. Todas as funcionalidades serão carregadas automaticamente
+        """)
+        
+    sync_bankroll_values()  # CORREÇÃO GARANTIDA
+    
+    st.subheader("⚙️ Configuração Inteligente de Apostas - Sistema Conquistador")
+    
+    # 🔥 ABA ATUALIZADA COM SISTEMA CONQUISTADOR
+    tab1, tab2, tab3 = st.tabs(["🎯 Distribuições", "💰 Investimentos", "💡 Recomendações"])
+    
+    with tab1:
+        render_aba_distribuicoes()
+    
+    with tab2:
+        col1, col2, col3 = st.columns([2, 2, 1.2])
+        
+        with col1:
+            st.markdown("**📈 Configuração de Odds**")
+            for i, bet_type in enumerate(BetType):
+                current_odds = st.session_state.app_state['odds_values'][bet_type.value]
+                new_odds = st.number_input(
+                    f"{bet_type.value}",
+                    min_value=1.01,
+                    value=float(current_odds),
+                    step=0.01,
+                    key=f"odds_{bet_type.name}_{i}",
+                    label_visibility="visible"
+                )
+                if new_odds != current_odds:
+                    st.session_state.app_state['odds_values'][bet_type.value] = float(new_odds)
+                    st.rerun()
+
+        with col2:
+            st.markdown("**💰 Controle de Investimentos**")
+            for i, bet_type in enumerate(BetType):
+                current_investment = st.session_state.app_state['investment_values'][bet_type.value]
+                new_investment = st.number_input(
+                    f"{bet_type.value} - R$",
+                    min_value=0.0,
+                    max_value=100.0,
+                    value=float(current_investment),
+                    step=0.10,
+                    key=f"inv_{bet_type.name}_{i}",
+                    label_visibility="visible"
+                )
+                if new_investment != current_investment:
+                    st.session_state.app_state['investment_values'][bet_type.value] = float(new_investment)
+                    
+                    # 🔥 MARCAR QUE PRECISA DE SINCRONIZAÇÃO
+                    st.session_state.app_state['distribution_applied'] = False
+                    st.session_state.app_state['needs_sync'] = True
+                    
+                    st.rerun()
+
+        with col3:
+            st.markdown("**🏦 Gerenciamento do Banco**")
+            
+            # 🔥 EXIBIR TOTAIS ATUAIS DE FORMA MAIS CLARA
+            current_total_invested = sum(st.session_state.app_state['investment_values'].values())
+            current_bankroll = st.session_state.app_state['total_bankroll']
+            
+            new_bankroll = st.number_input(
+                "Ajustar Bankroll (R$)",
+                min_value=0.0,
+                max_value=1000.0,
+                value=float(current_bankroll),
+                step=1.0,
+                key="total_bankroll_input_unique"
+            )
+            if new_bankroll != current_bankroll:
+                st.session_state.app_state['total_bankroll'] = new_bankroll
+                update_investments_from_proportions()
+                st.rerun()
+
+            # 🔥 BOTÃO DE SINCRONIZAÇÃO FORÇADA
+            if st.button("🔄 Sincronizar Valores", 
+                        use_container_width=True, 
+                        type="primary",
+                        key="dist_auto_simple"):
+                
+                # 🎯 EXECUTAR SINCRONIZAÇÃO COMPLETA
+                sync_global_state()
+                
+                # 🔥 ATUALIZAR OS VALORES EXIBIDOS
+                total_atual = sum(st.session_state.app_state['investment_values'].values())
+                bankroll_atual = st.session_state.app_state['total_bankroll']
+                
+                st.success(f"✅ Sistema sincronizado! Investido: R$ {total_atual:.2f} | Bankroll: R$ {bankroll_atual:.2f}")
+                st.rerun()
+
+    with tab3:
+        # MANTER APENAS AS RECOMENDAÇÕES INTELIGENTES
+        render_intelligent_recommendations()
+
+# =============================================
+# 🔧 FUNÇÕES DE RENDERIZAÇÃO PRINCIPAIS ATUALIZADAS
+# =============================================
+
+def aplicar_distribuicao_rapida(nome_distribuicao: str, capital_total: float):
+    """Aplica distribuição rapidamente"""
+    distribuicao_manager = st.session_state.app_state['distribuicao_manager']
+    
+    try:
+        distribuicao = distribuicao_manager.aplicar_distribuicao(nome_distribuicao, capital_total)
+        st.session_state.app_state['distribuicao_ativa'] = nome_distribuicao
+        st.session_state.app_state['distribuicao_detalhes'] = distribuicao
+        
+        aplicar_valores_distribuicao_automaticamente(distribuicao, nome_distribuicao)
+        
+        st.success(f"✅ {nome_distribuicao.replace('_', ' ').title()} aplicada!")
+        st.rerun()
+    except Exception as e:
+        st.error(f"❌ Erro: {str(e)}")
+
 def render_analise_avancada_value_bets():
-    """Renderiza a análise avançada de value bets"""
-    st.header("🔥 Análise de Valor Avançada")
+    """Renderiza a análise avançada de value bets ATUALIZADA"""
+    st.header("🔥 Análise de Valor Avançada - Sistema Conquistador")
     
     # Coletar dados atuais
     investments = st.session_state.app_state['investment_values']
@@ -725,6 +1247,27 @@ def render_analise_avancada_value_bets():
     with col4:
         apostas_lucrativas = analysis['resumo']['apostas_lucrativas']
         st.metric("Apostas +EV", f"{apostas_lucrativas}/{analysis['resumo']['numero_apostas']}")
+    
+    # 🔥 NOVO: APLICAÇÕES DE DISTRIBUIÇÃO RÁPIDA
+    st.subheader("⚡ Aplicação Rápida de Estratégias Conquistador")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if st.button("🛡️ Conservador", use_container_width=True, key="conservador_rapido"):
+            aplicar_distribuicao_rapida("PROTEGIDA_CONSERVADORA", bankroll)
+    
+    with col2:
+        if st.button("⚖️ Balanceado", use_container_width=True, key="balanceado_rapido"):
+            aplicar_distribuicao_rapida("REFERENCIA_OTIMIZADA", bankroll)
+    
+    with col3:
+        if st.button("🚀 Agressivo", use_container_width=True, key="agressivo_rapido"):
+            aplicar_distribuicao_rapida("AGGRESSIVE_3W1L", bankroll)
+    
+    with col4:
+        if st.button("💎 Alto Lucro", use_container_width=True, key="alto_lucro_rapido"):
+            aplicar_distribuicao_rapida("ALTO_LUCRO_2W1L", bankroll)
     
     # 🔥 COMPARAÇÃO ENTRE PLANOS
     st.subheader("📈 Comparação de Estratégias")
@@ -827,137 +1370,249 @@ def aplicar_plano(alocacoes: Dict):
     st.session_state.app_state['total_bankroll'] = total_investido
     update_proportions_from_investments()
     st.rerun()
-
-def sync_bankroll_values():
-    """Sincroniza todos os valores de bankroll e investimento - VERSÃO SUPER-ROBUSTA"""
-    app_state = st.session_state.app_state
     
-    # 🔥 CALCULAR TOTAL INVESTIDO DIRETO DOS VALORES
-    total_invested = sum(app_state['investment_values'].values())
-    
-    # 🔥 GARANTIR que os valores estão consistentes
-    app_state['total_invested'] = total_invested
-    
-    # 🔥 SE bankroll for MENOR que o investido, ATUALIZAR bankroll
-    if app_state['total_bankroll'] < total_invested:
-        app_state['total_bankroll'] = total_invested
-    
-    # 🔥 SE bankroll for MUITO MAIOR, manter mas garantir mínimo
-    if app_state['total_bankroll'] > total_invested * 2:
-        # Bankroll pode ser maior, mas não absurdamente maior
-        app_state['total_bankroll'] = max(app_state['total_bankroll'], total_invested)
-    
-    # 🔥 ATUALIZAR proporções
-    update_proportions_from_investments()
-    
-    # 🔥 LOG PARA VERIFICAR (opcional)
-    app_state['last_sync'] = {
-        'total_invested': total_invested,
-        'total_bankroll': app_state['total_bankroll'],
-        'timestamp': datetime.now().isoformat()
-    }
-
 # =============================================
-# 🔧 FUNÇÕES EXISTENTES DO SISTEMA ORIGINAL
+# 🔄 SISTEMA DE TRANSMISSÃO DE DADOS PARA HEDGE DINÂMICO
 # =============================================
 
-def render_controls():
-    """Configuração inteligente - VERSÃO SIMPLIFICADA SEM ABA PROBLEMÁTICA"""
-    
-    # 🔥 INDICADOR DE STATUS GLOBAL
-    if st.session_state.app_state.get('distribution_applied'):
-        st.success("✅ **SISTEMA SINCRONIZADO** - Todas as abas mostram valores consistentes")
-    else:
-        st.warning("⚠️ **CLIQUE EM 'DISTRIBUIÇÃO AUTOMÁTICA' PARA SINCRONIZAR**")
+def transmitir_analise_para_hedge(relatorio_completo: str, estatisticas: Dict, odds: Dict, investments: Dict):
+    """Transmite a análise completa para o módulo de hedge dinâmico"""
+    try:
+        # Verificar se o módulo dinâmico está disponível
+        if 'hedge_manager' not in st.session_state:
+            st.error("❌ Módulo de hedge dinâmico não está inicializado")
+            return False
         
-    sync_bankroll_values()  # CORREÇÃO GARANTIDA
-    
-    st.subheader("⚙️ Configuração Inteligente de Apostas")
-    
-    # 🔥 REMOVER A ABA PROBLEMÁTICA - MANTER APENAS ODDS E RECOMENDAÇÕES
-    tab1, tab2 = st.tabs(["🎯 Odds e Investimentos", "💡 Recomendações"])
-    
-    with tab1:
-        col1, col2, col3 = st.columns([2, 2, 1.2])
+        # Extrair informações críticas do relatório
+        informacoes_extraidas = extrair_informacoes_do_relatorio(relatorio_completo)
         
-        with col1:
-            st.markdown("**📈 Configuração de Odds**")
-            for i, bet_type in enumerate(BetType):
-                current_odds = st.session_state.app_state['odds_values'][bet_type.value]
-                new_odds = st.number_input(
-                    f"{bet_type.value}",
-                    min_value=1.01,
-                    value=float(current_odds),
-                    step=0.01,
-                    key=f"odds_{bet_type.name}_{i}",
-                    label_visibility="visible"
-                )
-                if new_odds != current_odds:
-                    st.session_state.app_state['odds_values'][bet_type.value] = float(new_odds)
-                    st.rerun()
-
-        with col2:
-            st.markdown("**💰 Controle de Investimentos**")
-            for i, bet_type in enumerate(BetType):
-                current_investment = st.session_state.app_state['investment_values'][bet_type.value]
-                new_investment = st.number_input(
-                    f"{bet_type.value} - R$",
-                    min_value=0.0,
-                    max_value=100.0,
-                    value=float(current_investment),
-                    step=0.10,
-                    key=f"inv_{bet_type.name}_{i}",
-                    label_visibility="visible"
-                )
-                if new_investment != current_investment:
-                    st.session_state.app_state['investment_values'][bet_type.value] = float(new_investment)
-                    
-                    # 🔥 MARCAR QUE PRECISA DE SINCRONIZAÇÃO
-                    st.session_state.app_state['distribution_applied'] = False
-                    st.session_state.app_state['needs_sync'] = True
-                    
-                    st.rerun()
-
-        with col3:
-            st.markdown("**🏦 Gerenciamento do Banco**")
-            current_bankroll = st.session_state.app_state['total_bankroll']
-            new_bankroll = st.number_input(
-                "Total do Bankroll (R$)",
-                min_value=0.0,
-                max_value=1000.0,
-                value=float(current_bankroll),
-                step=1.0,
-                key="total_bankroll_input_unique"
+        # Criar contexto de partida para o hedge dinâmico
+        match_context = criar_contexto_partida_para_hedge(informacoes_extraidas, estatisticas)
+        
+        # Calcular cenários críticos para hedge
+        analyzer = get_analyzer()
+        zero_result = analyzer.calculate_scenario_profit(0, 0, None)
+        fav_result = analyzer.calculate_scenario_profit(1, 1, True)
+        aza_result = analyzer.calculate_scenario_profit(1, 1, False)
+        
+        # Preparar dados para transmissão
+        dados_transmissao = {
+            'relatorio_completo': relatorio_completo,
+            'informacoes_extraidas': informacoes_extraidas,
+            'match_context': match_context,
+            'cenarios_criticos': {
+                'zero_profit': zero_result['Lucro/Prejuízo'],
+                'fav_profit': fav_result['Lucro/Prejuízo'], 
+                'aza_profit': aza_result['Lucro/Prejuízo']
+            },
+            'odds': odds,
+            'investments': investments,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # Armazenar no session_state para acesso do módulo dinâmico
+        st.session_state.ultima_analise_transmitida = dados_transmissao
+        st.session_state.hedge_manager.ultima_analise_recebida = dados_transmissao
+        
+        # Registrar operação no memory manager
+        if hasattr(st.session_state.hedge_manager, 'memory_manager'):
+            st.session_state.hedge_manager.memory_manager.add_learning_note(
+                f"Análise recebida do Sistema Conquistador: {informacoes_extraidas['cenario_principal']}"
             )
-            if new_bankroll != current_bankroll:
-                st.session_state.app_state['total_bankroll'] = new_bankroll
-                update_investments_from_proportions()
-                st.rerun()
+        
+        st.success("✅ **ANÁLISE TRANSMITIDA COM SUCESSO!**")
+        st.info("📊 O módulo de hedge dinâmico agora tem todas as informações para fornecer recomendações precisas.")
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"❌ Erro ao transmitir análise para hedge dinâmico: {e}")
+        return False
 
-            # 🔥 BOTÃO DE SINCRONIZAÇÃO SIMPLIFICADO
-            if st.button("🔄 Distribuição Automática", 
-                        use_container_width=True, 
-                        type="primary",
-                        key="dist_auto_simple"):
-                
-                # 🎯 EXECUTAR SINCRONIZAÇÃO
-                sync_global_state()
-                
-                st.success(f"✅ Sistema sincronizado! Bankroll: R$ {st.session_state.app_state['total_bankroll']:.2f}")
-                st.rerun()
+def extrair_informacoes_do_relatorio(relatorio: str) -> Dict:
+    """Extrai informações estruturadas do relatório de análise"""
+    informacoes = {
+        'liga': 'Não identificada',
+        'importancia': 'Média',
+        'condicoes_especiais': [],
+        'motivacao_favorito': 'Média',
+        'cenario_principal': 'Não identificado',
+        'confianca_cenario': 'Moderada',
+        'estilo_jogo_favorito': 'Equilibrado',
+        'pressao_favorito': 'Média',
+        'consistencia_azarao': 'Regular',
+        'historico_confrontos': 'Equilibrado',
+        'probabilidade_azarao_marcar': 50.0
+    }
+    
+    try:
+        linhas = relatorio.split('\n')
+        
+        for i, linha in enumerate(linhas):
+            # Extrair liga
+            if 'Liga/Campeonato:' in linha:
+                informacoes['liga'] = linha.split(':')[-1].strip()
+            
+            # Extrair importância
+            elif 'Importância:' in linha:
+                informacoes['importancia'] = linha.split(':')[-1].strip()
+            
+            # Extrair condições especiais
+            elif 'Condições Especiais:' in linha:
+                condicoes = linha.split(':')[-1].strip()
+                if condicoes != 'Nenhuma':
+                    informacoes['condicoes_especiais'] = [c.strip() for c in condicoes.split(',')]
+            
+            # Extrair motivação do favorito
+            elif 'Motivação do Favorito:' in linha:
+                informacoes['motivacao_favorito'] = linha.split(':')[-1].strip()
+            
+            # Extrair cenário principal
+            elif 'Cenário Mais Provável:' in linha:
+                cenario_completo = linha.split(':')[-1].strip()
+                if '(' in cenario_completo:
+                    cenario = cenario_completo.split('(')[0].strip()
+                    confianca = cenario_completo.split('(')[1].replace(')', '').strip()
+                    informacoes['cenario_principal'] = cenario
+                    informacoes['confianca_cenario'] = confianca
+            
+            # Extrair estilo de jogo
+            elif 'Estilo do Favorito:' in linha:
+                informacoes['estilo_jogo_favorito'] = linha.split(':')[-1].strip()
+            
+            # Extrair pressão
+            elif 'Pressão sobre Favorito:' in linha:
+                informacoes['pressao_favorito'] = linha.split(':')[-1].strip()
+            
+            # Extrair consistência
+            elif 'Consistência do Azarão:' in linha:
+                informacoes['consistencia_azarao'] = linha.split(':')[-1].strip()
+            
+            # Extrair histórico
+            elif 'Histórico de Confrontos:' in linha:
+                informacoes['historico_confrontos'] = linha.split(':')[-1].strip()
+            
+            # Calcular probabilidade do azarão marcar baseado no contexto
+            if 'Azarão' in linha and 'marcar' in linha.lower():
+                if 'Muito Irregular' in linha:
+                    informacoes['probabilidade_azarao_marcar'] = 30.0
+                elif 'Irregular' in linha:
+                    informacoes['probabilidade_azarao_marcar'] = 40.0
+                elif 'Consistente' in linha:
+                    informacoes['probabilidade_azarao_marcar'] = 60.0
+        
+        return informacoes
+        
+    except Exception as e:
+        st.warning(f"⚠️ Algumas informações não puderam ser extraídas automaticamente: {e}")
+        return informacoes
 
-    with tab2:
-        # MANTER APENAS AS RECOMENDAÇÕES INTELIGENTES
-        render_intelligent_recommendations()
+def criar_contexto_partida_para_hedge(informacoes: Dict, estatisticas: Dict):
+    """Cria contexto de partida para o módulo de hedge dinâmico"""
+    try:
+        from dinamico import MatchContext, MatchStatistics, MatchEvent
+        
+        # Criar estatísticas baseadas nas informações extraídas
+        stats = MatchStatistics(
+            possession_fav=55,  # Valor padrão
+            possession_aza=45,
+            shots_fav=estatisticas.get('gols_feitos_favorito', 8),
+            shots_aza=estatisticas.get('gols_feitos_azarao', 4),
+            shots_on_target_fav=max(1, estatisticas.get('gols_feitos_favorito', 8) // 2),
+            shots_on_target_aza=max(1, estatisticas.get('gols_feitos_azarao', 4) // 2),
+            dangerous_attacks_fav=10,
+            dangerous_attacks_aza=6,
+            corners_fav=5,
+            corners_aza=3,
+            fouls_fav=8,
+            fouls_aza=10,
+            offsides_fav=2,
+            offsides_aza=1,
+            yellow_cards_fav=1,
+            yellow_cards_aza=2,
+            red_cards_fav=0,
+            red_cards_aza=0
+        )
+        
+        # Ajustar baseado no cenário principal
+        if 'Vitória convincente' in informacoes['cenario_principal']:
+            stats.possession_fav = 65
+            stats.possession_aza = 35
+            stats.shots_fav += 3
+        elif 'Azarão pode marcar' in informacoes['cenario_principal']:
+            stats.shots_aza += 2
+            stats.dangerous_attacks_aza += 3
+        
+        # Criar contexto da partida
+        context = MatchContext(
+            current_score="0x0",  # Partida não iniciada
+            minute=0,
+            statistics=stats,
+            event_type=MatchEvent.MATCH_START,
+            momentum="EQUILIBRADO",
+            additional_notes=f"Análise pré-partida: {informacoes['cenario_principal']}"
+        )
+        
+        return context
+        
+    except Exception as e:
+        st.warning(f"⚠️ Contexto simplificado criado devido a: {e}")
+        return None
 
 def render_detailed_scenario_analysis():
-    """Renderiza análise detalhada de cenários com tabelas completas"""
+    """Renderiza análise detalhada de cenários com botão de transmissão para hedge"""
     st.subheader("📈 Análise Avançada de Cenários - DETALHADA")
     
     analyzer = get_analyzer()
     total_investment = analyzer.get_total_investment()
     
-    # Cenários importantes para análise
+    # 🔥 NOVO: BOTÃO PARA TRANSMITIR ANÁLISE PARA HEDGE DINÂMICO
+    if 'generated_prompt' in st.session_state:
+        col1, col2 = st.columns([3, 1])
+        
+        with col2:
+            st.markdown("### 🔄 Transmissão para Hedge")
+            if st.button("📤 ENVIAR ANÁLISE PARA HEDGE DINÂMICO", 
+                        use_container_width=True,
+                        type="primary",
+                        key="transmitir_analise_hedge"):
+                
+                with st.spinner("Transmitindo análise para módulo de hedge..."):
+                    # Coletar dados necessários
+                    estatisticas = {
+                        'vitorias_favorito': st.session_state.app_state.get('vitorias_favorito', 3),
+                        'gols_feitos_favorito': st.session_state.app_state.get('gols_feitos_favorito', 8),
+                        'gols_sofridos_favorito': st.session_state.app_state.get('gols_sofridos_favorito', 3),
+                        'vitorias_azarao': st.session_state.app_state.get('vitorias_azarao', 1),
+                        'gols_feitos_azarao': st.session_state.app_state.get('gols_feitos_azarao', 4),
+                        'gols_sofridos_azarao': st.session_state.app_state.get('gols_sofridos_azarao', 10)
+                    }
+                    
+                    odds = st.session_state.app_state['odds_values']
+                    investments = st.session_state.app_state['investment_values']
+                    
+                    # Transmitir análise
+                    sucesso = transmitir_analise_para_hedge(
+                        st.session_state['generated_prompt'],
+                        estatisticas,
+                        odds,
+                        investments
+                    )
+                    
+                    if sucesso:
+                        st.balloons()
+                        st.success("""
+                        ✅ **Análise transmitida com sucesso!**
+                        
+                        **Agora o módulo de hedge dinâmico tem:**
+                        - 📊 Contexto completo da partida
+                        - 🎯 Cenário principal identificado  
+                        - 💰 Situação atual das apostas
+                        - 🛡️ Informações de proteção
+                        - 📈 Dados para recomendações precisas
+                        """)
+    
+    # Cenários importantes para análise - INCLUINDO CENÁRIOS PROTEGIDOS PELA NOVA APOSTA
     important_scenarios = [
         ('0x0', 0, 0, None, "Empate sem gols"),
         ('1x0 FAV', 1, 0, True, "Vitória do favorito 1x0"),
@@ -966,11 +1621,12 @@ def render_detailed_scenario_analysis():
         ('1x1 AZA 1º', 1, 1, False, "Empate 1x1 com gol do azarão primeiro"),
         ('2x0 FAV', 2, 0, True, "Vitória convincente do favorito"),
         ('0x2 AZA', 0, 2, False, "Vitória convincente do azarão"),
-        ('2x1 FAV', 2, 1, True, "Vitória do favorito com gol do azarão"),
-        ('1x2 AZA', 1, 2, False, "Vitória do azarão com gol do favorito"),
-        ('2x2', 2, 2, None, "Empate com muitos gols"),
+        ('2x1 FAV', 2, 1, True, "Vitória do favorito com gol do azarão - PROTEGIDO"),
+        ('1x2 AZA', 1, 2, False, "Vitória do azarão com gol do favorito - PROTEGIDO"),
+        ('2x2', 2, 2, None, "Empate com muitos gols - PROTEGIDO"),
         ('3x0 FAV', 3, 0, True, "Goleada do favorito"),
-        ('0x3 AZA', 0, 3, False, "Goleada do azarão")
+        ('0x3 AZA', 0, 3, False, "Goleada do azarão - PROTEGIDO"),
+        ('1x3 AZA', 1, 3, False, "Goleada do azarão com gol de honra - PROTEGIDO")
     ]
     
     # Dados para gráficos
@@ -987,7 +1643,8 @@ def render_detailed_scenario_analysis():
             'Placar': f"{home_goals}x{away_goals}",
             'Lucro/Prejuízo': result['Lucro/Prejuízo'],
             'ROI': result['ROI'],
-            'Status': result['Status']
+            'Status': result['Status'],
+            'Protegido': '✅' if away_goals > 0 else '❌'  # Indica se cenário é protegido pela nova aposta
         }
         all_scenario_data.append(scenario_data)
         scenario_profits[scenario_name] = result['Lucro/Prejuízo']
@@ -1002,6 +1659,7 @@ def render_detailed_scenario_analysis():
             'Lucro/Prejuízo': f"R$ {result['Lucro/Prejuízo']:.2f}",
             'ROI': f"{result['ROI']:.1f}%",
             'Status': result['Status'],
+            'Proteção Azarão': '✅ SIM' if away_goals > 0 else '❌ NÃO',
             'Apostas Vencedoras': ', '.join(result['Apostas Vencedoras']) if result['Apostas Vencedoras'] else 'Nenhuma',
             # Versões numéricas para ordenação
             'Lucro_Num': result['Lucro/Prejuízo'],
@@ -1018,20 +1676,42 @@ def render_detailed_scenario_analysis():
     neutral_scenarios = len([s for s in detailed_scenarios if s['Status'] == '⚖️ Equilíbrio'])
     losing_scenarios = len([s for s in detailed_scenarios if s['Status'] == '❌ Prejuízo'])
     
+    protected_scenarios = len([s for s in detailed_scenarios if s['Proteção Azarão'] == '✅ SIM'])
+    
     # 🔥 GRÁFICOS EXISTENTES
     col1, col2 = st.columns(2)
     with col1:
-        fig_profit = px.bar(df_all, x='Cenário', y='Lucro/Prejuízo', color='Status',
-                           title='Lucro/Prejuízo por Cenário (R$)',
-                           color_discrete_map={'✅ Lucro': '#00FF00', '❌ Prejuízo': '#FF0000', '⚖️ Equilíbrio': '#FFFF00'})
+        fig_profit = px.bar(df_all, x='Cenário', y='Lucro/Prejuízo', color='Protegido',
+                           title='Lucro/Prejuízo por Cenário - Proteção Mais 0,5 Azarão (R$)',
+                           color_discrete_map={'✅': '#00FF00', '❌': '#FF0000'})
         fig_profit.update_layout(showlegend=True)
         st.plotly_chart(fig_profit, use_container_width=True, key="grafico_lucro_cenarios")
     
     with col2:
-        fig_roi = px.bar(df_all, x='Cenário', y='ROI', color='ROI',
-                        title='ROI por Cenário (%)',
-                        color_continuous_scale='RdYlGn')
+        fig_roi = px.bar(df_all, x='Cenário', y='ROI', color='Protegido',
+                        title='ROI por Cenário - Proteção Mais 0,5 Azarão (%)',
+                        color_discrete_map={'✅': '#00FF00', '❌': '#FF0000'})
         st.plotly_chart(fig_roi, use_container_width=True, key="grafico_roi_cenarios")
+    
+    # 🔥 RESUMO DA PROTEÇÃO
+    st.markdown("### 🛡️ RESUMO DA PROTEÇÃO MAIS 0,5 GOLS AZARÃO")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Cenários Protegidos", f"{protected_scenarios}/{len(detailed_scenarios)}")
+    
+    with col2:
+        st.metric("Cenários Lucrativos", f"{profitable_scenarios}/{len(detailed_scenarios)}")
+    
+    with col3:
+        # Calcular eficiência da proteção
+        protected_profitable = len([s for s in detailed_scenarios if s['Proteção Azarão'] == '✅ SIM' and s['Status'] == '✅ Lucro'])
+        eficiencia = (protected_profitable / protected_scenarios * 100) if protected_scenarios > 0 else 0
+        st.metric("Eficiência da Proteção", f"{eficiencia:.1f}%")
+    
+    with col4:
+        st.metric("Cenários Críticos Cobertos", "1x1, 2x1, 1x2, 2x2")
     
     # 🔥 TABELA DETALHADA COM ANÁLISE POR EXTENSO
     st.markdown("### 📋 ANÁLISE DETALHADA POR CENÁRIO")
@@ -1042,15 +1722,18 @@ def render_detailed_scenario_analysis():
         filter_status = st.selectbox("Filtrar por Status:", 
                                    ["Todos", "✅ Lucro", "❌ Prejuízo", "⚖️ Equilíbrio"])
     with col2:
+        filter_protection = st.selectbox("Filtrar por Proteção:", 
+                                       ["Todos", "✅ SIM", "❌ NÃO"])
+    with col3:
         sort_by = st.selectbox("Ordenar por:", 
                               ["Cenário", "Lucro/Prejuízo", "ROI", "Investimento Total"])
-    with col3:
-        show_details = st.checkbox("Mostrar análise detalhada", value=True)
     
     # Aplicar filtros
     filtered_df = df_detailed.copy()
     if filter_status != "Todos":
         filtered_df = filtered_df[filtered_df['Status'] == filter_status]
+    if filter_protection != "Todos":
+        filtered_df = filtered_df[filtered_df['Proteção Azarão'] == filter_protection]
     
     # Ordenar usando as colunas numéricas
     sort_mapping = {
@@ -1066,7 +1749,7 @@ def render_detailed_scenario_analysis():
         filtered_df = filtered_df.sort_values(sort_column, ascending=ascending)
     
     # Exibir tabela detalhada (apenas colunas de exibição)
-    display_columns = ['Cenário', 'Descrição', 'Placar', 'Investimento Total', 
+    display_columns = ['Cenário', 'Descrição', 'Placar', 'Proteção Azarão', 'Investimento Total', 
                       'Retorno Total', 'Lucro/Prejuízo', 'ROI', 'Status', 'Apostas Vencedoras']
     
     st.dataframe(
@@ -1078,55 +1761,171 @@ def render_detailed_scenario_analysis():
     return scenario_profits
 
 def render_dinamico_integration():
-    """Renderiza a integração com o módulo dinamico"""
+    """Renderiza a integração com o módulo dinâmico - VERSÃO ATUALIZADA COM ANÁLISE RECEBIDA"""
     st.header("🛡️ Hedge Dinâmico com IA")
+    
+    # 🔥 NOVO: VERIFICAR SE HÁ ANÁLISE TRANSMITIDA
+    if hasattr(st.session_state, 'ultima_analise_transmitida'):
+        st.success("📊 **ANÁLISE DO SISTEMA CONQUISTADOR RECEBIDA!**")
+        
+        with st.expander("🔍 Visualizar Análise Transmitida", expanded=False):
+            info = st.session_state.ultima_analise_transmitida['informacoes_extraidas']
+            st.write(f"**Liga:** {info['liga']}")
+            st.write(f"**Cenário Principal:** {info['cenario_principal']}")
+            st.write(f"**Confiança:** {info['confianca_cenario']}")
+            st.write(f"**Prob. Azarão Marcar:** {info['probabilidade_azarao_marcar']}%")
+            
+            if st.button("🔄 Usar Esta Análise para Recomendações", key="usar_analise_transmitida"):
+                st.session_state.usar_analise_conquistador = True
+                st.rerun()
+    
+    # Verificar disponibilidade do módulo
+    if not getattr(st.session_state, 'dinamico_available', True):
+        st.error("❌ Módulo dinamico.py não encontrado!")
+        st.info("""
+        ### 📋 Para habilitar o Hedge Dinâmico COMPLETO:
+        
+        1. **Certifique-se de que o arquivo `dinamico.py` está na mesma pasta**
+        2. **Reinicie a aplicação**
+        3. **O sistema de hedge inteligente será carregado automaticamente**
+        """)
+        return
     
     try:
         from dinamico import render_hedge_controls, render_hedge_results
         
+        # Obter dados necessários do sistema principal
         analyzer = get_analyzer()
         
-        zero_result = analyzer.calculate_scenario_profit(0, 0, None)
-        fav_result = analyzer.calculate_scenario_profit(1, 1, True)
-        aza_result = analyzer.calculate_scenario_profit(1, 1, False)
+        # 🔥 MELHORIA: Usar análise transmitida se disponível
+        if (hasattr(st.session_state, 'ultima_analise_transmitida') and 
+            st.session_state.get('usar_analise_conquistador', False)):
+            
+            cenarios = st.session_state.ultima_analise_transmitida['cenarios_criticos']
+            zero_profit = cenarios['zero_profit']
+            fav_profit = cenarios['fav_profit'] 
+            aza_profit = cenarios['aza_profit']
+            
+            st.info("🎯 **Usando análise do Sistema Conquistador para recomendações**")
+        else:
+            # Calcular cenários críticos para o hedge (fallback)
+            zero_result = analyzer.calculate_scenario_profit(0, 0, None)
+            fav_result = analyzer.calculate_scenario_profit(1, 1, True)
+            aza_result = analyzer.calculate_scenario_profit(1, 1, False)
+            
+            zero_profit = zero_result['Lucro/Prejuízo']
+            fav_profit = fav_result['Lucro/Prejuízo']
+            aza_profit = aza_result['Lucro/Prejuízo']
         
-        zero_profit = zero_result['Lucro/Prejuízo']
-        fav_profit = fav_result['Lucro/Prejuízo']
-        aza_profit = aza_result['Lucro/Prejuízo']
-        
+        # Obter odds atualizadas
         odds_values = st.session_state.app_state['odds_values']
         
-        render_hedge_controls(zero_profit, fav_profit, aza_profit, odds_values)
+        # 🔥 ADICIONAR ODDS ESPECÍFICAS PARA HEDGE
+        hedge_odds = odds_values.copy()
         
+        # Garantir que todas as odds necessárias para hedge existam
+        required_hedge_odds = [
+            "Mais 0,5 Gols Azarão", "Dupla Chance X2", "Dupla Chance 1X",
+            "Ambas Marcam - Não", "Não Sair Gols", "Mais 2,5 Gols", "Menos 2,5 Gols"
+        ]
+        
+        for required_odd in required_hedge_odds:
+            if required_odd not in hedge_odds:
+                default_values = {
+                    "Mais 0,5 Gols Azarão": 2.10,
+                    "Dupla Chance X2": 1.91,
+                    "Dupla Chance 1X": 1.80,
+                    "Ambas Marcam - Não": 2.00,
+                    "Não Sair Gols": 3.00,
+                    "Mais 2,5 Gols": 2.20,
+                    "Menos 2,5 Gols": 1.65
+                }
+                hedge_odds[required_odd] = default_values.get(required_odd, 2.0)
+        
+        # Renderizar controles do hedge
+        render_hedge_controls(zero_profit, fav_profit, aza_profit, hedge_odds)
+        
+        # Mostrar resultados se hedge foi aplicado
         if st.session_state.get('hedge_applied', False):
             render_hedge_results()
             
     except ImportError as e:
-        st.error(f"❌ Módulo dinamico não disponível: {e}")
-        st.info("""
-        ### 📋 Para habilitar o Hedge Dinâmico:
-        1. Certifique-se de que o arquivo `dinamico.py` está na mesma pasta
-        2. Reinicie a aplicação
-        3. O sistema de hedge inteligente será carregado automaticamente
-        """)
+        st.error(f"❌ Erro ao importar módulo dinamico: {e}")
+        st.session_state.dinamico_available = False
+    except Exception as e:
+        st.error(f"❌ Erro no módulo dinâmico: {e}")
+        
+def sync_with_dinamico_module():
+    """Sincroniza dados entre os módulos principal e dinâmico"""
+    try:
+        if 'hedge_manager' in st.session_state and 'app_state' in st.session_state:
+            # Sincronizar odds atualizadas
+            app_odds = st.session_state.app_state['odds_values']
+            
+            # Atualizar odds específicas para hedge se necessário
+            required_odds = ["Mais 0,5 Gols Azarão", "Dupla Chance X2", "Dupla Chance 1X"]
+            for odd_name in required_odds:
+                if odd_name not in app_odds:
+                    # Adicionar odds padrão se não existirem
+                    default_odds = {
+                        "Mais 0,5 Gols Azarão": 2.10,
+                        "Dupla Chance X2": 1.91,
+                        "Dupla Chance 1X": 1.80
+                    }
+                    st.session_state.app_state['odds_values'][odd_name] = default_odds[odd_name]
+            
+            return True
+    except Exception as e:
+        st.warning(f"⚠️ Aviso na sincronização: {e}")
+    
+    return False
 
 # =============================================
-# 🚀 FUNÇÃO PRINCIPAL CORRIGIDA
+# 🔧 FUNÇÕES AUXILIARES PARA NOMES DOS TIMES
+# =============================================
+
+def get_nome_favorito() -> str:
+    """Retorna o nome do time favorito"""
+    return st.session_state.app_state.get('favorito', 'Favorito')
+
+def get_nome_azarao() -> str:
+    """Retorna o nome do time azarão"""
+    return st.session_state.app_state.get('azarao', 'Azarão')
+
+def substituir_nomes_texto(texto: str) -> str:
+    """Substitui 'Favorito' e 'Azarão' pelos nomes reais"""
+    favorito = get_nome_favorito()
+    azarao = get_nome_azarao()
+    
+    texto = texto.replace('Favorito', favorito)
+    texto = texto.replace('Azarão', azarao)
+    texto = texto.replace('favorito', favorito)
+    texto = texto.replace('azarão', azarao)
+    
+    return texto
+
+# =============================================
+# 🚀 FUNÇÃO PRINCIPAL ATUALIZADA
 # =============================================
 
 def main_optimized():
-    """Função principal otimizada"""
+    """Função principal otimizada com Sistema Conquistador integrado"""
     st.set_page_config(
-        page_title="Analisador de Apostas - Versão Otimizada",
+        page_title="Analisador de Apostas - Sistema Conquistador PRO",
         page_icon="🔥",
         layout="wide"
     )
     
-    st.title("🎯 Analisador Inteligente - ANÁLISE DE VALOR OTIMIZADA")
-    st.markdown("### 🔥 Implementando as recomendações estatísticas para maximizar EV")
+    st.title("🎯 Analisador Inteligente - SISTEMA CONQUISTADOR PRO")
+    st.markdown("### 🏆 **ESTRATÉGIAS OTIMIZADAS:** 4 Distribuições + Proteção Mais 0,5 Gols Azarão")
     
+    # 🔥 INICIALIZAÇÃO ROBUSTA
     init_state()
     
+    # 🔥 SINCRONIZAÇÃO ENTRE MÓDULOS
+    sync_with_dinamico_module()
+    
+    # Abas principais
     tab1, tab2, tab3, tab4 = st.tabs([
         "🔥 Análise de Valor", 
         "⚙️ Configuração", 
@@ -1141,7 +1940,6 @@ def main_optimized():
         render_controls()
     
     with tab3:
-        # Substituir a função antiga pela nova detalhada
         render_detailed_scenario_analysis()
     
     with tab4:
