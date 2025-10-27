@@ -149,28 +149,31 @@ class SistemaAplicacoes:
         return [
             {
                 "nome": "MAIS 1,5 GOLS + AMBAS NÃO",
-                "mercados": ["Mais 1.5 Gols", "Ambas Marcam - Não"],
+                "mercados": ["Mais 1.5 & Ambas Não", "Mais 1.5 Gols"],
                 "descricao": "✅ Cobre vitórias 2x0, 3x0, 4x0, 5x0 (qualquer vitória convincente sem gol do azarão)",
-                "peso_padrao": 0.30
+                "peso_padrao": 0.30,
+                "distribuicoes_compatíveis": ["REFERENCIA_OTIMIZADA", "ALTO_LUCRO_2W1L", "PROTEGIDA_CONSERVADORA", "AGGRESSIVE_3W1L"]
             },
             {
                 "nome": "MAIS 2,5 GOLS + FAVORITO", 
-                "mercados": ["Mais 2.5 Gols", "Vitória Favorito"],
+                "mercados": ["Mais 2.5 & Dupla Chance 12", "Vitória Favorito"],
                 "descricao": "✅ Cobre vitórias 3x0, 3x1, 4x0, 4x1, 5x0 (vitórias com muitos gols do favorito)",
-                "peso_padrao": 0.35
+                "peso_padrao": 0.35,
+                "distribuicoes_compatíveis": ["REFERENCIA_OTIMIZADA", "ALTO_LUCRO_2W1L", "PROTEGIDA_CONSERVADORA", "AGGRESSIVE_3W1L"]
             },
             {
                 "nome": "PROTEÇÃO AZARÃO COMPLETA",
                 "mercados": ["Mais 0,5 Gols Azarão", "Dupla Chance X2"],
                 "descricao": "✅ Cobre empates 1x1, 2x2 e vitórias do azarão 1x0, 2x0, 2x1 (qualquer cenário com azarão marcando ou não perdendo)",
-                "peso_padrao": 0.35
+                "peso_padrao": 0.35,
+                "distribuicoes_compatíveis": ["REFERENCIA_OTIMIZADA", "ALTO_LUCRO_2W1L", "PROTEGIDA_CONSERVADORA", "AGGRESSIVE_3W1L"]
             }
         ]
     
-    def calcular_valores_sugeridos(self, distribuicao_detalhes: Dict, distribuicao_nome: str) -> Dict[str, float]:
-        """Calcula valores sugeridos baseados na distribuição"""
+    def calcular_valores_por_aplicacao(self, distribuicao_detalhes: Dict, distribuicao_nome: str) -> Dict[str, Dict]:
+        """Calcula valores detalhados por aplicação baseados na distribuição"""
         if not distribuicao_detalhes:
-            return {app["nome"]: 0.0 for app in self.aplicacoes_predefinidas}
+            return {}
         
         capital_total = sum(dados['valor_ajustado'] for dados in distribuicao_detalhes.values())
         
@@ -184,12 +187,37 @@ class SistemaAplicacoes:
         
         pesos_estrategia = pesos.get(distribuicao_nome, [0.30, 0.35, 0.35])
         
-        valores_sugeridos = {}
-        for i, aplicacao in enumerate(self.aplicacoes_predefinidas):
-            valor = capital_total * pesos_estrategia[i]
-            valores_sugeridos[aplicacao["nome"]] = round(valor, 2)
+        aplicacoes_detalhadas = {}
         
-        return valores_sugeridos
+        for i, aplicacao in enumerate(self.aplicacoes_predefinidas):
+            valor_total_aplicacao = capital_total * pesos_estrategia[i]
+            
+            # Distribuir o valor total da aplicação entre os mercados
+            if aplicacao["nome"] == "MAIS 1,5 GOLS + AMBAS NÃO":
+                valores_mercados = {
+                    "Mais 1.5 & Ambas Não": round(valor_total_aplicacao * 0.7, 2),
+                    "Mais 1.5 Gols": round(valor_total_aplicacao * 0.3, 2)
+                }
+            elif aplicacao["nome"] == "MAIS 2,5 GOLS + FAVORITO":
+                valores_mercados = {
+                    "Mais 2.5 & Dupla Chance 12": round(valor_total_aplicacao * 0.6, 2),
+                    "Vitória Favorito": round(valor_total_aplicacao * 0.4, 2)
+                }
+            elif aplicacao["nome"] == "PROTEÇÃO AZARÃO COMPLETA":
+                valores_mercados = {
+                    "Mais 0,5 Gols Azarão": round(valor_total_aplicacao * 0.6, 2),
+                    "Dupla Chance X2": round(valor_total_aplicacao * 0.4, 2)
+                }
+            
+            aplicacoes_detalhadas[aplicacao["nome"]] = {
+                "valor_total": valor_total_aplicacao,
+                "peso_estrategia": pesos_estrategia[i],
+                "valores_mercados": valores_mercados,
+                "descricao": aplicacao["descricao"],
+                "compativel": distribuicao_nome in aplicacao["distribuicoes_compatíveis"]
+            }
+        
+        return aplicacoes_detalhadas
 
 # =============================================
 # 🔧 FUNÇÃO INIT_STATE CORRIGIDA COM SISTEMA CONQUISTADOR
@@ -914,52 +942,28 @@ def sync_bankroll_values():
 # =============================================
 
 def aplicar_valores_distribuicao_automaticamente(distribuicao_detalhes, distribuicao_nome):
-    """Aplica valores da distribuição automaticamente COM SINCRONIZAÇÃO DO BANKROLL"""
+    """Aplica valores da distribuição automaticamente COM SINCRONIZAÇÃO DO BANKROLL E APLICAÇÕES ESPECÍFICAS"""
     if not distribuicao_detalhes:
         return
     
     sistema_aplicacoes = st.session_state.app_state['sistema_aplicacoes']
-    valores_sugeridos = sistema_aplicacoes.calcular_valores_sugeridos(distribuicao_detalhes, distribuicao_nome)
+    aplicacoes_detalhadas = sistema_aplicacoes.calcular_valores_por_aplicacao(distribuicao_detalhes, distribuicao_nome)
     
     # Limpar valores existentes
     for mercado in st.session_state.app_state['investment_values']:
         st.session_state.app_state['investment_values'][mercado] = 0.0
     
-    # Aplicar valores baseados nas estratégias
+    # Aplicar valores baseados nas aplicações detalhadas
     try:
-        # DEFINIR PESOS POR ESTRATÉGIA
-        pesos = {
-            "REFERENCIA_OTIMIZADA": [0.30, 0.35, 0.35],
-            "ALTO_LUCRO_2W1L": [0.35, 0.40, 0.25],
-            "PROTEGIDA_CONSERVADORA": [0.25, 0.30, 0.45],
-            "AGGRESSIVE_3W1L": [0.40, 0.45, 0.15]
-        }
+        total_investido = 0
         
-        pesos_estrategia = pesos.get(distribuicao_nome, [0.30, 0.35, 0.35])
-        capital_total = sum(dados['valor_ajustado'] for dados in distribuicao_detalhes.values())
-        
-        # Aplicação 1: MAIS 1,5 + AMBAS NÃO
-        valor_app1 = capital_total * pesos_estrategia[0]
-        st.session_state.app_state['investment_values']["Mais 1.5 & Ambas Não"] = round(valor_app1 * 0.7, 2)
-        st.session_state.app_state['investment_values']["Mais 1.5 Gols"] = round(valor_app1 * 0.3, 2)
-        
-        # Aplicação 2: MAIS 2,5 + FAVORITO
-        valor_app2 = capital_total * pesos_estrategia[1]
-        st.session_state.app_state['investment_values']["Mais 2.5 & Dupla Chance 12"] = round(valor_app2 * 0.6, 2)
-        st.session_state.app_state['investment_values']["Vitória Favorito"] = round(valor_app2 * 0.4, 2)
-        
-        # Aplicação 3: PROTEÇÃO AZARÃO
-        valor_app3 = capital_total * pesos_estrategia[2]
-        st.session_state.app_state['investment_values']["Mais 0,5 Gols Azarão"] = round(valor_app3 * 0.6, 2)
-        st.session_state.app_state['investment_values']["Dupla Chance X2"] = round(valor_app3 * 0.4, 2)
+        for aplicacao_nome, detalhes in aplicacoes_detalhadas.items():
+            for mercado, valor in detalhes['valores_mercados'].items():
+                st.session_state.app_state['investment_values'][mercado] = valor
+                total_investido += valor
         
         # 🔥 CORREÇÃO CRÍTICA: SINCRONIZAR BANKROLL COM O TOTAL INVESTIDO
-        total_investido = sum(st.session_state.app_state['investment_values'].values())
-        
-        # Atualizar o bankroll para corresponder exatamente ao total investido
         st.session_state.app_state['total_bankroll'] = total_investido
-        
-        # 🔥 ATUALIZAR OS TOTAIS NO ESTADO
         st.session_state.app_state['total_invested'] = total_investido
         
         # 🔥 FORÇAR SINCRONIZAÇÃO DAS PROPORÇÕES
@@ -969,7 +973,10 @@ def aplicar_valores_distribuicao_automaticamente(distribuicao_detalhes, distribu
         st.session_state.app_state['distribution_applied'] = True
         st.session_state.app_state['needs_sync'] = False
         
-        st.success(f"✅ Valores aplicados! Bankroll ajustado para R$ {total_investido:.2f}")
+        # 🔥 SALVAR AS APLICAÇÕES APLICADAS PARA EXIBIÇÃO
+        st.session_state.app_state['aplicacoes_aplicadas'] = aplicacoes_detalhadas
+        
+        st.success(f"✅ Distribuição {distribuicao_nome.replace('_', ' ').title()} aplicada! Bankroll: R$ {total_investido:.2f}")
         
     except Exception as e:
         st.error(f"❌ Erro ao aplicar valores: {str(e)}")
@@ -979,10 +986,11 @@ def aplicar_valores_distribuicao_automaticamente(distribuicao_detalhes, distribu
 # =============================================
 
 def render_aba_distribuicoes():
-    """Nova aba para sistema de distribuições"""
+    """Nova aba para sistema de distribuições - ATUALIZADA COM APLICAÇÕES DETALHADAS"""
     st.header("🎯 Sistema de Distribuições - Estratégias Conquistador")
     
     distribuicao_manager = st.session_state.app_state['distribuicao_manager']
+    sistema_aplicacoes = st.session_state.app_state['sistema_aplicacoes']
     
     st.info("""
     **📊 SISTEMA DE MÚLTIPLAS DISTRIBUIÇÕES**
@@ -1011,6 +1019,23 @@ def render_aba_distribuicoes():
             step=1.0
         )
     
+    # 🔥 PRÉ-VISUALIZAÇÃO DAS APLICAÇÕES
+    if distribuicao_selecionada:
+        st.subheader("📋 Aplicações Recomendadas para Esta Distribuição")
+        
+        # Calcular pré-visualização
+        distribuicao_preview = distribuicao_manager.aplicar_distribuicao(distribuicao_selecionada, capital_total)
+        aplicacoes_preview = sistema_aplicacoes.calcular_valores_por_aplicacao(distribuicao_preview, distribuicao_selecionada)
+        
+        for i, (aplicacao_nome, detalhes) in enumerate(aplicacoes_preview.items()):
+            with st.expander(f"🎯 {aplicacao_nome} - R$ {detalhes['valor_total']:.2f} ({detalhes['peso_estrategia']*100:.0f}%)", expanded=True):
+                st.write(f"**Descrição:** {detalhes['descricao']}")
+                st.write("**Valores por Mercado:**")
+                
+                col1, col2 = st.columns(2)
+                for mercado, valor in detalhes['valores_mercados'].items():
+                    col1.metric(f"📊 {mercado}", f"R$ {valor:.2f}")
+    
     if st.button("🎯 APLICAR DISTRIBUIÇÃO", use_container_width=True, type="primary"):
         with st.spinner("Aplicando distribuição..."):
             try:
@@ -1034,25 +1059,84 @@ def render_aba_distribuicoes():
             except Exception as e:
                 st.error(f"❌ Erro: {str(e)}")
     
-    # MOSTRAR DISTRIBUIÇÃO ATIVA
+    # 🔥 MOSTRAR DISTRIBUIÇÃO ATIVA COM APLICAÇÕES
     if st.session_state.app_state['distribuicao_ativa']:
         distribuicao = st.session_state.app_state['distribuicao_detalhes']
+        aplicacoes_aplicadas = st.session_state.app_state.get('aplicacoes_aplicadas', {})
         
-        st.subheader("📋 Detalhes da Distribuição Aplicada")
-        dados_tabela = []
-        for cenario, dados in distribuicao.items():
-            dados_tabela.append({
-                "Cenário": cenario,
-                "Descrição": dados['nome'],
-                "Tipo": "✅ LUCRO" if dados['tipo'] == 'LUCRO' else "⚠️ PREJUÍZO",
-                "Valor Investido (R$)": f"{dados['valor_ajustado']:.2f}",
-                "Retorno Esperado (R$)": f"{dados['retorno_ajustado']:.2f}",
-                "ROI": f"{dados['roi']}%",
-                "Proteção": "✅" if dados['protecao'] else "❌"
-            })
+        st.subheader("📋 Distribuição Aplicada - Detalhes Completos")
         
-        df = pd.DataFrame(dados_tabela)
-        st.dataframe(df, use_container_width=True)
+        # Abas para diferentes visualizações
+        tab1, tab2, tab3 = st.tabs(["📊 Cenários", "🎯 Aplicações", "💰 Resumo Financeiro"])
+        
+        with tab1:
+            st.write("**Detalhes dos Cenários da Distribuição:**")
+            dados_tabela = []
+            for cenario, dados in distribuicao.items():
+                dados_tabela.append({
+                    "Cenário": cenario,
+                    "Descrição": dados['nome'],
+                    "Tipo": "✅ LUCRO" if dados['tipo'] == 'LUCRO' else "⚠️ PREJUÍZO",
+                    "Valor Investido (R$)": f"{dados['valor_ajustado']:.2f}",
+                    "Retorno Esperado (R$)": f"{dados['retorno_ajustado']:.2f}",
+                    "ROI": f"{dados['roi']}%",
+                    "Proteção": "✅" if dados['protecao'] else "❌"
+                })
+            
+            df = pd.DataFrame(dados_tabela)
+            st.dataframe(df, use_container_width=True)
+        
+        with tab2:
+            st.write("**Aplicações Implementadas:**")
+            
+            if aplicacoes_aplicadas:
+                for aplicacao_nome, detalhes in aplicacoes_aplicadas.items():
+                    with st.expander(f"🎯 {aplicacao_nome} - R$ {detalhes['valor_total']:.2f}", expanded=True):
+                        st.write(f"**Descrição:** {detalhes['descricao']}")
+                        st.write(f"**Peso na Estratégia:** {detalhes['peso_estrategia']*100:.0f}%")
+                        
+                        col1, col2 = st.columns(2)
+                        for mercado, valor in detalhes['valores_mercados'].items():
+                            col1.metric(f"📊 {mercado}", f"R$ {valor:.2f}")
+                        
+                        # Mostrar status de aplicação
+                        total_aplicado = sum(detalhes['valores_mercados'].values())
+                        col2.metric("💰 Total Aplicado", f"R$ {total_aplicado:.2f}")
+            else:
+                st.info("ℹ️ Nenhuma aplicação detalhada disponível. Aplique uma distribuição para ver os detalhes.")
+        
+        with tab3:
+            st.write("**Resumo Financeiro da Distribuição:**")
+            
+            total_investido = sum(st.session_state.app_state['investment_values'].values())
+            total_bankroll = st.session_state.app_state['total_bankroll']
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("💰 Bankroll Total", f"R$ {total_bankroll:.2f}")
+            
+            with col2:
+                st.metric("📊 Total Investido", f"R$ {total_investido:.2f}")
+            
+            with col3:
+                utilizacao = (total_investido / total_bankroll * 100) if total_bankroll > 0 else 0
+                st.metric("🎯 Utilização", f"{utilizacao:.1f}%")
+            
+            # Mostrar distribuição por tipo de aposta
+            st.write("**Distribuição por Tipo de Aposta:**")
+            investimentos = st.session_state.app_state['investment_values']
+            apostas_ativas = {k: v for k, v in investimentos.items() if v > 0}
+            
+            if apostas_ativas:
+                df_apostas = pd.DataFrame({
+                    'Mercado': list(apostas_ativas.keys()),
+                    'Valor (R$)': list(apostas_ativas.values()),
+                    'Percentual': [f"{(v/total_investido*100):.1f}%" for v in apostas_ativas.values()]
+                })
+                st.dataframe(df_apostas, use_container_width=True)
+            else:
+                st.info("ℹ️ Nenhuma aposta ativa no momento")
         
 # =============================================
 # 🔧 FUNÇÃO AUXILIAR PARA VERIFICAR CONEXÃO
@@ -1091,18 +1175,18 @@ def check_dinamico_connection():
 # =============================================
 
 def render_controls():
-    """Configuração inteligente - VERSÃO ATUALIZADA COM SISTEMA CONQUISTADOR E STATUS DINÂMICO"""
+    """Configuração inteligente - VERSÃO ATUALIZADA COM CORREÇÃO DO BANKROLL"""
     
-    # 🔥 STATUS DA CONEXÃO DINÂMICA (NOVO)
+    # 🔥 STATUS DA CONEXÃO DINÂMICA
     connection_status = check_dinamico_connection()
     
-    # 🔥 INDICADOR DE STATUS GLOBAL (EXISTENTE)
+    # 🔥 INDICADOR DE STATUS GLOBAL
     if st.session_state.app_state.get('distribution_applied'):
         st.success("✅ **SISTEMA SINCRONIZADO** - Todas as abas mostram valores consistentes")
     else:
-        st.warning("⚠️ **CLIQUE EM 'DISTRIBUIÇÃO AUTOMÁTICA' PARA SINCRONIZAR**")
+        st.warning("⚠️ **SELECIONE UMA DISTRIBUIÇÃO E CLIQUE EM 'APLICAR DISTRIBUIÇÃO'**")
     
-    # 🔥 EXIBIR STATUS DA CONEXÃO DINÂMICA (NOVO)
+    # 🔥 EXIBIR STATUS DA CONEXÃO DINÂMICA
     st.info(f"**Status do Módulo Dinâmico:** {connection_status['status']} - {connection_status['message']}")
     
     if connection_status['status'] != "✅ CONECTADO":
@@ -1113,11 +1197,12 @@ def render_controls():
         3. Todas as funcionalidades serão carregadas automaticamente
         """)
         
-    sync_bankroll_values()  # CORREÇÃO GARANTIDA
+    # 🔥 SINCRONIZAÇÃO INICIAL GARANTIDA
+    sync_bankroll_values()
     
     st.subheader("⚙️ Configuração Inteligente de Apostas - Sistema Conquistador")
     
-    # 🔥 ABA ATUALIZADA COM SISTEMA CONQUISTADOR
+    # Abas principais
     tab1, tab2, tab3 = st.tabs(["🎯 Distribuições", "💰 Investimentos", "💡 Recomendações"])
     
     with tab1:
@@ -1157,60 +1242,72 @@ def render_controls():
                 )
                 if new_investment != current_investment:
                     st.session_state.app_state['investment_values'][bet_type.value] = float(new_investment)
-                    
-                    # 🔥 MARCAR QUE PRECISA DE SINCRONIZAÇÃO
                     st.session_state.app_state['distribution_applied'] = False
                     st.session_state.app_state['needs_sync'] = True
-                    
                     st.rerun()
                     
-        # No render_controls(), dentro da col3, substituir esta parte:
         with col3:
             st.markdown("**🏦 Gerenciamento do Banco**")
             
-            # 🔥 EXIBIR TOTAIS ATUAIS DE FORMA MAIS CLARA
+            # 🔥 CALCULAR VALORES ATUAIS
             current_total_invested = sum(st.session_state.app_state['investment_values'].values())
             current_bankroll = st.session_state.app_state['total_bankroll']
             
-            # 🔥 MOSTRAR STATUS DE SINCRONIZAÇÃO
-            if abs(current_bankroll - current_total_invested) > 0.01:
-                st.warning(f"⚠️ Bankroll: R$ {current_bankroll:.2f} | Investido: R$ {current_total_invested:.2f}")
-            else:
-                st.success(f"✅ Sincronizado: R$ {current_bankroll:.2f}")
+            # 🔥 EXIBIR STATUS DE SINCRONIZAÇÃO CORRETO
+            diferenca = abs(current_bankroll - current_total_invested)
             
+            if diferenca > 0.01:
+                st.warning(f"""
+                **⚠️ Atenção - Valores Não Sincronizados**
+                - Bankroll: R$ {current_bankroll:.2f}
+                - Investido: R$ {current_total_invested:.2f}
+                - Diferença: R$ {diferenca:.2f}
+                """)
+            else:
+                st.success(f"""
+                **✅ Sistema Sincronizado**
+                - Bankroll: R$ {current_bankroll:.2f}
+                - Investido: R$ {current_total_invested:.2f}
+                """)
+            
+            # 🔥 INPUT DO BANKROLL CORRIGIDO
             new_bankroll = st.number_input(
                 "Ajustar Bankroll (R$)",
                 min_value=0.0,
                 max_value=1000.0,
-                value=float(current_bankroll),
+                value=float(current_total_invested),  # 🔥 SEMPRE MOSTRAR O VALOR INVESTIDO ATUAL
                 step=1.0,
                 key="total_bankroll_input_unique"
             )
             
-            # 🔥 SE O USUÁRIO ALTERAR MANUALMENTE, ATUALIZAR PROPORÇÕES
+            # 🔥 SE O USUÁRIO ALTERAR, ATUALIZAR COM SINCRONIZAÇÃO
             if new_bankroll != current_bankroll:
                 st.session_state.app_state['total_bankroll'] = new_bankroll
-                update_investments_from_proportions()
+                
+                # Se o novo bankroll for maior que o investido, redistribuir proporcionalmente
+                if new_bankroll > current_total_invested:
+                    update_investments_from_proportions()
+                # Se for menor, ajustar os investimentos para caber no novo bankroll
+                elif new_bankroll < current_total_invested:
+                    fator_ajuste = new_bankroll / current_total_invested if current_total_invested > 0 else 1
+                    for mercado in st.session_state.app_state['investment_values']:
+                        st.session_state.app_state['investment_values'][mercado] *= fator_ajuste
+                    update_proportions_from_investments()
+                
                 st.rerun()
 
-            # 🔥 BOTÃO DE SINCRONIZAÇÃO FORÇADA
-            if st.button("🔄 Sincronizar Valores", 
+            # 🔥 BOTÃO DE SINCRONIZAÇÃO FORÇADA MELHORADO
+            if st.button("🔄 Sincronizar Bankroll com Investido", 
                         use_container_width=True, 
                         type="primary",
-                        key="dist_auto_simple"):
+                        help="Ajusta o bankroll para igualar o total investido",
+                        key="sync_bankroll_btn"):
                 
-                # 🎯 EXECUTAR SINCRONIZAÇÃO COMPLETA
-                sync_global_state()
-                
-                # 🔥 ATUALIZAR OS VALORES EXIBIDOS
-                total_atual = sum(st.session_state.app_state['investment_values'].values())
-                bankroll_atual = st.session_state.app_state['total_bankroll']
-                
-                st.success(f"✅ Sistema sincronizado! Investido: R$ {total_atual:.2f} | Bankroll: R$ {bankroll_atual:.2f}")
+                st.session_state.app_state['total_bankroll'] = current_total_invested
+                st.success(f"✅ Bankroll sincronizado: R$ {current_total_invested:.2f}")
                 st.rerun()
 
     with tab3:
-        # MANTER APENAS AS RECOMENDAÇÕES INTELIGENTES
         render_intelligent_recommendations()
 
 # =============================================
