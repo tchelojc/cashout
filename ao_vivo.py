@@ -149,20 +149,20 @@ class SistemaAplicacoes:
         return [
             {
                 "nome": "MAIS 1,5 GOLS + AMBAS NÃO",
-                "mercados": ["Mais 1.5 Gols", "Ambas Marcam - Não"],
-                "descricao": "✅ Cobre vitórias 2x0, 3x0, 4x0, 5x0 (qualquer vitória convincente sem gol do azarão)",
+                "mercados_principais": ["Mais 1.5 & Ambas Não", "Mais 1.5 Gols"],
+                "descricao": "✅ Cobre vitórias 2x0, 3x0, 4x0, 5x0",
                 "peso_padrao": 0.30
             },
             {
                 "nome": "MAIS 2,5 GOLS + FAVORITO", 
-                "mercados": ["Mais 2.5 Gols", "Vitória Favorito"],
-                "descricao": "✅ Cobre vitórias 3x0, 3x1, 4x0, 4x1, 5x0 (vitórias com muitos gols do favorito)",
+                "mercados_principais": ["Mais 2.5 & Dupla Chance 12", "Vitória Favorito"],
+                "descricao": "✅ Cobre vitórias 3x0, 3x1, 4x0, 4x1, 5x0",
                 "peso_padrao": 0.35
             },
             {
                 "nome": "PROTEÇÃO AZARÃO COMPLETA",
-                "mercados": ["Mais 0,5 Gols Azarão", "Dupla Chance X2"],
-                "descricao": "✅ Cobre empates 1x1, 2x2 e vitórias do azarão 1x0, 2x0, 2x1 (qualquer cenário com azarão marcando ou não perdendo)",
+                "mercados_principais": ["Mais 0,5 Gols Azarão", "Dupla Chance X2"],
+                "descricao": "✅ Cobre empates 1x1, 2x2 e vitórias do azarão",
                 "peso_padrao": 0.35
             }
         ]
@@ -195,8 +195,325 @@ class SistemaAplicacoes:
 # 🔧 FUNÇÃO INIT_STATE CORRIGIDA COM SISTEMA CONQUISTADOR
 # =============================================
 
+# =============================================
+# 🔧 FUNÇÃO PARA APLICAR VALORES AUTOMATICAMENTE - CORREÇÃO FINAL
+# =============================================
+
+def aplicar_valores_distribuicao_automaticamente(distribuicao_detalhes, distribuicao_nome):
+    """Aplica valores da distribuição automaticamente - CORREÇÃO DEFINITIVA"""
+    if not distribuicao_detalhes:
+        st.error("❌ Nenhuma distribuição para aplicar")
+        return
+    
+    # Limpar TODOS os valores existentes primeiro
+    for mercado in st.session_state.app_state['investment_values']:
+        st.session_state.app_state['investment_values'][mercado] = 0.0
+    
+    try:
+        # DEFINIR PESOS POR ESTRATÉGIA - CORRIGIDO
+        pesos = {
+            "REFERENCIA_OTIMIZADA": [0.30, 0.35, 0.35],
+            "ALTO_LUCRO_2W1L": [0.35, 0.40, 0.25],
+            "PROTEGIDA_CONSERVADORA": [0.25, 0.30, 0.45],
+            "AGGRESSIVE_3W1L": [0.40, 0.45, 0.15]
+        }
+        
+        pesos_estrategia = pesos.get(distribuicao_nome, [0.30, 0.35, 0.35])
+        capital_total = sum(dados['valor_ajustado'] for dados in distribuicao_detalhes.values())
+        
+        # 🔥 CORREÇÃO CRÍTICA: APLICAR VALORES DIRETAMENTE NOS MERCADOS CORRETOS
+        # Aplicação 1: MAIS 1,5 + AMBAS NÃO
+        valor_app1 = capital_total * pesos_estrategia[0]
+        st.session_state.app_state['investment_values']["Mais 1.5 & Ambas Não"] = round(valor_app1 * 0.7, 2)
+        st.session_state.app_state['investment_values']["Mais 1.5 Gols"] = round(valor_app1 * 0.3, 2)
+        
+        # Aplicação 2: MAIS 2,5 + FAVORITO
+        valor_app2 = capital_total * pesos_estrategia[1]
+        st.session_state.app_state['investment_values']["Mais 2.5 & Dupla Chance 12"] = round(valor_app2 * 0.6, 2)
+        st.session_state.app_state['investment_values']["Vitória Favorito"] = round(valor_app2 * 0.4, 2)
+        
+        # Aplicação 3: PROTEÇÃO AZARÃO
+        valor_app3 = capital_total * pesos_estrategia[2]
+        st.session_state.app_state['investment_values']["Mais 0,5 Gols Azarão"] = round(valor_app3 * 0.6, 2)
+        st.session_state.app_state['investment_values']["Dupla Chance X2"] = round(valor_app3 * 0.4, 2)
+        
+        # 🔥 SINCRONIZAÇÃO IMEDIATA DO BANKROLL
+        total_investido = sum(st.session_state.app_state['investment_values'].values())
+        st.session_state.app_state['total_bankroll'] = total_investido
+        st.session_state.app_state['total_invested'] = total_investido
+        
+        # 🔥 ATUALIZAR PROPORÇÕES
+        update_proportions_from_investments()
+        
+        # 🔥 MARCAR COMO SINCRONIZADO
+        st.session_state.app_state['distribution_applied'] = True
+        
+        st.success(f"✅ {distribuicao_nome.replace('_', ' ').title()} aplicada! Total: R$ {total_investido:.2f}")
+        
+    except Exception as e:
+        st.error(f"❌ Erro crítico ao aplicar distribuição: {str(e)}")
+
+# =============================================
+# 🔧 RENDER_CONTROLS - CORREÇÃO DO ERRO DE NÓ
+# =============================================
+
+# 🔥 CORREÇÃO CRÍTICA - FUNÇÃO RENDER_CONTROLS ATUALIZADA
+def render_controls():
+    """Configuração inteligente - CORREÇÃO DEFINITIVA DO ERRO DE NÓ"""
+    
+    # 🔥 STATUS DA CONEXÃO DINÂMICA
+    connection_status = check_dinamico_connection()
+    
+    # 🔥 INDICADOR DE STATUS GLOBAL
+    if st.session_state.app_state.get('distribution_applied'):
+        st.success("✅ **SISTEMA SINCRONIZADO** - Valores consistentes")
+    else:
+        st.warning("⚠️ **SELECIONE UMA DISTRIBUIÇÃO PARA APLICAR OS VALORES**")
+    
+    # 🔥 EXIBIR STATUS DA CONEXÃO DINÂMICA
+    st.info(f"**Status do Módulo Dinâmico:** {connection_status['status']} - {connection_status['message']}")
+    
+    # 🔥 SINCRONIZAÇÃO INICIAL GARANTIDA
+    sync_bankroll_values()
+    
+    st.subheader("⚙️ Configuração Inteligente de Apostas - Sistema Conquistador")
+    
+    # Abas principais
+    tab1, tab2 = st.tabs(["💰 Investimentos", "💡 Recomendações"])
+    
+    with tab1:
+        col1, col2, col3 = st.columns([2, 2, 1.2])
+        
+        with col1:
+            st.markdown("**📈 Configuração de Odds**")
+            for i, bet_type in enumerate(BetType):
+                current_odds = st.session_state.app_state['odds_values'][bet_type.value]
+                new_odds = st.number_input(
+                    f"{bet_type.value}",
+                    min_value=1.01,
+                    value=float(current_odds),
+                    step=0.01,
+                    # 🔥 CORREÇÃO CRÍTICA: KEY ABSOLUTAMENTE ÚNICA E ESTÁVEL
+                    key=f"odds_fixed_{bet_type.name}_{i}_main",
+                    label_visibility="visible"
+                )
+                if new_odds != current_odds:
+                    st.session_state.app_state['odds_values'][bet_type.value] = float(new_odds)
+                    st.rerun()
+
+        with col2:
+            st.markdown("**💰 Controle de Investimentos**")
+            for i, bet_type in enumerate(BetType):
+                current_investment = st.session_state.app_state['investment_values'][bet_type.value]
+                
+                # 🔥 CORREÇÃO: USAR CONTAINER PARA ISOLAR CADA INPUT
+                with st.container():
+                    new_investment = st.number_input(
+                        f"{bet_type.value} - R$",
+                        min_value=0.0,
+                        max_value=100.0,
+                        value=float(current_investment),
+                        step=0.10,
+                        # 🔥 CORREÇÃO CRÍTICA: KEY ÚNICA POR TIPO + ÍNDICE + CONTEXTO
+                        key=f"investment_fixed_{bet_type.name}_{i}_main_app",
+                        label_visibility="visible"
+                    )
+                
+                # 🔥 ATUALIZAÇÃO CONDICIONAL EVITANDO LOOP INFINITO
+                if abs(new_investment - current_investment) > 0.001:
+                    st.session_state.app_state['investment_values'][bet_type.value] = float(new_investment)
+                    st.session_state.app_state['distribution_applied'] = False
+                    
+                    # 🔥 ATUALIZAR BANKROLL AUTOMATICAMENTE
+                    total_investido = sum(st.session_state.app_state['investment_values'].values())
+                    st.session_state.app_state['total_bankroll'] = total_investido
+                    
+                    st.rerun()
+                    
+        with col3:
+            st.markdown("**🏦 Gerenciamento do Banco**")
+            
+            # 🔥 CALCULAR VALORES ATUAIS
+            current_total_invested = sum(st.session_state.app_state['investment_values'].values())
+            current_bankroll = st.session_state.app_state['total_bankroll']
+            
+            # 🔥 EXIBIR STATUS DE SINCRONIZAÇÃO
+            if abs(current_bankroll - current_total_invested) > 0.01:
+                st.warning(f"""
+                **⚠️ Atenção**
+                - Bankroll: R$ {current_bankroll:.2f}
+                - Investido: R$ {current_total_invested:.2f}
+                """)
+            else:
+                st.success(f"""
+                **✅ Sincronizado**
+                - Bankroll: R$ {current_bankroll:.2f}
+                """)
+            
+            # 🔥 INPUT DO BANKROLL - CORREÇÃO DO VALOR
+            with st.container():
+                new_bankroll = st.number_input(
+                    "Ajustar Bankroll (R$)",
+                    min_value=0.0,
+                    max_value=1000.0,
+                    value=float(current_total_invested),
+                    step=1.0,
+                    # 🔥 KEY ÚNICA PARA BANKROLL
+                    key="bankroll_fixed_unique_main_app"
+                )
+            
+            # 🔥 ATUALIZAR SE ALTERADO
+            if abs(new_bankroll - current_bankroll) > 0.01:
+                st.session_state.app_state['total_bankroll'] = new_bankroll
+                
+                # Se o novo bankroll for diferente, redistribuir
+                if abs(new_bankroll - current_total_invested) > 0.01:
+                    update_investments_from_proportions()
+                
+                st.rerun()
+
+            # 🔥 BOTÃO DE SINCRONIZAÇÃO
+            if st.button("🔄 Sincronizar Bankroll", 
+                        use_container_width=True, 
+                        type="primary",
+                        # 🔥 KEY ÚNICA PARA BOTÃO
+                        key="sync_fixed_main_btn"):
+                
+                st.session_state.app_state['total_bankroll'] = current_total_invested
+                st.success(f"✅ Bankroll sincronizado: R$ {current_total_invested:.2f}")
+                st.rerun()
+
+            # 🔥 SEÇÃO DE DISTRIBUIÇÃO AUTOMÁTICA
+            st.markdown("---")
+            st.markdown("**🎯 Distribuição Automática**")
+            
+            distribuicao_manager = st.session_state.app_state['distribuicao_manager']
+            capital_total = st.session_state.app_state['total_bankroll']
+            
+            with st.container():
+                distribuicao_selecionada = st.selectbox(
+                    "Selecionar Distribuição:",
+                    options=list(distribuicao_manager.distribuicoes.keys()),
+                    format_func=lambda x: x.replace("_", " ").title(),
+                    # 🔥 KEY ÚNICA PARA SELECTBOX
+                    key="distribuicao_fixed_main_select"
+                )
+            
+            if st.button("🎯 Aplicar Distribuição", 
+                        use_container_width=True, 
+                        type="secondary",
+                        # 🔥 KEY ÚNICA PARA BOTÃO DE DISTRIBUIÇÃO
+                        key="aplicar_distribuicao_fixed_main_btn"):
+                
+                with st.spinner("Aplicando distribuição..."):
+                    try:
+                        # 🔥 CORREÇÃO: APLICAR DISTRIBUIÇÃO DIRETAMENTE
+                        distribuicao = distribuicao_manager.aplicar_distribuicao(distribuicao_selecionada, capital_total)
+                        
+                        st.session_state.app_state['distribuicao_ativa'] = distribuicao_selecionada
+                        st.session_state.app_state['distribuicao_detalhes'] = distribuicao
+                        
+                        # Aplicar valores automaticamente
+                        aplicar_valores_distribuicao_automaticamente(distribuicao, distribuicao_selecionada)
+                        
+                        st.success(f"✅ **{distribuicao_selecionada.replace('_', ' ').title()}** aplicada!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Erro ao aplicar distribuição: {str(e)}")
+
+    with tab2:
+        render_intelligent_recommendations()
+        
+def correcao_emergencial_erro_no():
+    """Correção emergencial para o erro de nó no Streamlit"""
+    
+    # 🔥 LIMPAR ESTADOS PROBLEMÁTICOS
+    problematic_keys = [key for key in st.session_state.keys() if 'investment' in key or 'odds' in key]
+    for key in problematic_keys:
+        if 'temp' in key or 'cache' in key:
+            del st.session_state[key]
+    
+    # 🔥 FORÇAR SINCRONIZAÇÃO COMPLETA
+    sync_global_state()
+    
+    # 🔥 VERIFICAR INTEGRIDADE DOS DADOS
+    total_investido = sum(st.session_state.app_state['investment_values'].values())
+    total_bankroll = st.session_state.app_state['total_bankroll']
+    
+    # 🔥 CORRIGIR INCONSISTÊNCIAS
+    if abs(total_investido - total_bankroll) > 0.01:
+        st.session_state.app_state['total_bankroll'] = total_investido
+        update_proportions_from_investments()
+    
+    st.success("🔧 **Correção de integridade aplicada!**")
+    
+    return True
+
+# 🔥 ADICIONAR BOTÃO DE CORREÇÃO EMERGENCIAL NA INTERFACE
+def adicionar_botao_correcao():
+    """Adiciona botão de correção emergencial na interface"""
+    if st.sidebar.button("🛠️ Correção Emergencial (Erro de Nó)", 
+                        use_container_width=True,
+                        type="secondary"):
+        with st.spinner("Aplicando correção..."):
+            correcao_emergencial_erro_no()
+            st.rerun()
+
+# =============================================
+# 🔧 FUNÇÃO DE SINCRONIZAÇÃO SIMPLIFICADA
+# =============================================
+
+def sync_bankroll_values():
+    """Sincronização simplificada e robusta"""
+    app_state = st.session_state.app_state
+    
+    # Calcular total investido
+    total_invested = sum(app_state['investment_values'].values())
+    app_state['total_invested'] = total_invested
+    
+    # Se bankroll for menor que investido, ajustar
+    if app_state['total_bankroll'] < total_invested:
+        app_state['total_bankroll'] = total_invested
+    
+    # Atualizar proporções
+    update_proportions_from_investments()
+
+# =============================================
+# 🎯 SISTEMA DE APLICAÇÕES - CORREÇÃO FINAL
+# =============================================
+
+class SistemaAplicacoes:
+    def __init__(self):
+        self.aplicacoes_predefinidas = self._criar_aplicacoes()
+    
+    def _criar_aplicacoes(self):
+        return [
+            {
+                "nome": "MAIS 1,5 GOLS + AMBAS NÃO",
+                "mercados_principais": ["Mais 1.5 & Ambas Não", "Mais 1.5 Gols"],
+                "descricao": "✅ Cobre vitórias 2x0, 3x0, 4x0, 5x0",
+                "peso_padrao": 0.30
+            },
+            {
+                "nome": "MAIS 2,5 GOLS + FAVORITO", 
+                "mercados_principais": ["Mais 2.5 & Dupla Chance 12", "Vitória Favorito"],
+                "descricao": "✅ Cobre vitórias 3x0, 3x1, 4x0, 4x1, 5x0",
+                "peso_padrao": 0.35
+            },
+            {
+                "nome": "PROTEÇÃO AZARÃO COMPLETA",
+                "mercados_principais": ["Mais 0,5 Gols Azarão", "Dupla Chance X2"],
+                "descricao": "✅ Cobre empates 1x1, 2x2 e vitórias do azarão",
+                "peso_padrao": 0.35
+            }
+        ]
+
+# =============================================
+# 🔧 INIT_STATE - CORREÇÃO DE INICIALIZAÇÃO
+# =============================================
+
 def init_state():
-    """Inicializa o estado da aplicação com Sistema Conquistador integrado"""
+    """Inicialização robusta do estado"""
     if 'app_state' not in st.session_state:
         default_odds = {
             "Mais 1.5 & Ambas Não": 3.50,
@@ -226,56 +543,30 @@ def init_state():
         
         initial_bankroll = sum(default_investments.values())
         
-        # ✅ ADICIONAR NOVOS ESTADOS DO SISTEMA CONQUISTADOR
         st.session_state.app_state = {
             'odds_values': default_odds,
             'investment_values': default_investments,
             'total_bankroll': initial_bankroll,
             'investment_proportions': {},
-            'last_analysis': {},
-            'user_profile': 'Moderado',
-            'show_odds_analysis': True,
             'distribution_applied': False,
-            'vitorias_favorito': 3,
-            'gols_feitos_favorito': 8,
-            'gols_sofridos_favorito': 3,
-            'vitorias_azarao': 1,
-            'gols_feitos_azarao': 4,
-            'gols_sofridos_azarao': 10,
-            # ✅ NOVOS ESTADOS DO SISTEMA CONQUISTADOR
             'distribuicao_manager': DistribuicaoManager(),
             'sistema_aplicacoes': SistemaAplicacoes(),
             'distribuicao_ativa': None,
             'distribuicao_detalhes': None,
-            'etapa_atual': 1,
-            'time_casa': "Favorito",
-            'time_fora': "Azarao", 
-            'odd_casa': 1.80,
-            'odd_fora': 4.50,
-            'favorito': "Favorito",
-            'azarao': "Azarao"
         }
         update_proportions_from_investments()
     
-    # 🔥 INICIALIZAÇÃO ROBUSTA DO MÓDULO DINÂMICO
+    # Módulo dinâmico
     try:
-        # Verificar se o módulo existe
         import importlib.util
         spec = importlib.util.find_spec("dinamico")
-        
         if spec is not None:
             from dinamico import init_hedge_state
             if 'hedge_manager' not in st.session_state:
                 init_hedge_state()
-                st.success("✅ Módulo Dinâmico conectado com sucesso!")
-        else:
-            st.session_state.dinamico_available = False
-            st.warning("⚠️ Módulo dinamico.py não encontrado. Funcionalidades de hedge estarão limitadas.")
-            
-    except ImportError as e:
+    except:
         st.session_state.dinamico_available = False
-        st.warning(f"⚠️ Módulo dinamico não disponível: {e}")
-
+        
 def update_proportions_from_investments():
     """Atualiza proporções baseadas nos investimentos atuais"""
     total_investment = sum(st.session_state.app_state['investment_values'].values())
@@ -876,50 +1167,36 @@ def sync_global_state():
     st.success(f"✅ Sistema sincronizado! Bankroll: R$ {total_invested:.2f}")
     
 def sync_bankroll_values():
-    """Sincroniza todos os valores de bankroll e investimento - VERSÃO CORRIGIDA"""
+    """Sincronização simplificada e robusta"""
     app_state = st.session_state.app_state
     
-    # 🔥 CALCULAR TOTAL INVESTIDO DIRETO DOS VALORES
+    # Calcular total investido
     total_invested = sum(app_state['investment_values'].values())
-    
-    # 🔥 ATUALIZAR O TOTAL INVESTIDO NO ESTADO
     app_state['total_invested'] = total_invested
     
-    # 🔥 SE O BANKROLL FOR MENOR QUE O INVESTIDO, ATUALIZAR BANKROLL
+    # Se bankroll for menor que investido, ajustar
     if app_state['total_bankroll'] < total_invested:
         app_state['total_bankroll'] = total_invested
     
-    # 🔥 SE O BANKROLL FOR MUITO MAIOR QUE O INVESTIDO, MANTER O VALOR DO BANKROLL
-    # (permite que o usuário tenha bankroll maior que o investido atual)
-    
-    # 🔥 ATUALIZAR PROPORÇÕES
+    # Atualizar proporções
     update_proportions_from_investments()
-    
-    # 🔥 LOG PARA VERIFICAR (opcional)
-    app_state['last_sync'] = {
-        'total_invested': total_invested,
-        'total_bankroll': app_state['total_bankroll'],
-        'timestamp': datetime.now().isoformat()
-    }
 
 # =============================================
 # 🔧 FUNÇÃO PARA APLICAR VALORES AUTOMATICAMENTE
 # =============================================
 
 def aplicar_valores_distribuicao_automaticamente(distribuicao_detalhes, distribuicao_nome):
-    """Aplica valores da distribuição automaticamente COM SINCRONIZAÇÃO DO BANKROLL - CORRIGIDA"""
+    """Aplica valores da distribuição automaticamente - CORREÇÃO DEFINITIVA"""
     if not distribuicao_detalhes:
+        st.error("❌ Nenhuma distribuição para aplicar")
         return
     
-    sistema_aplicacoes = st.session_state.app_state['sistema_aplicacoes']
-    
-    # Limpar valores existentes
+    # Limpar TODOS os valores existentes primeiro
     for mercado in st.session_state.app_state['investment_values']:
         st.session_state.app_state['investment_values'][mercado] = 0.0
     
-    # Aplicar valores baseados nas estratégias - CORREÇÃO PRINCIPAL
     try:
-        # DEFINIR PESOS POR ESTRATÉGIA
+        # DEFINIR PESOS POR ESTRATÉGIA - CORRIGIDO
         pesos = {
             "REFERENCIA_OTIMIZADA": [0.30, 0.35, 0.35],
             "ALTO_LUCRO_2W1L": [0.35, 0.40, 0.25],
@@ -930,7 +1207,7 @@ def aplicar_valores_distribuicao_automaticamente(distribuicao_detalhes, distribu
         pesos_estrategia = pesos.get(distribuicao_nome, [0.30, 0.35, 0.35])
         capital_total = sum(dados['valor_ajustado'] for dados in distribuicao_detalhes.values())
         
-        # CORREÇÃO: APLICAR VALORES NAS APLICAÇÕES ESPECÍFICAS
+        # 🔥 CORREÇÃO CRÍTICA: APLICAR VALORES DIRETAMENTE NOS MERCADOS CORRETOS
         # Aplicação 1: MAIS 1,5 + AMBAS NÃO
         valor_app1 = capital_total * pesos_estrategia[0]
         st.session_state.app_state['investment_values']["Mais 1.5 & Ambas Não"] = round(valor_app1 * 0.7, 2)
@@ -946,24 +1223,21 @@ def aplicar_valores_distribuicao_automaticamente(distribuicao_detalhes, distribu
         st.session_state.app_state['investment_values']["Mais 0,5 Gols Azarão"] = round(valor_app3 * 0.6, 2)
         st.session_state.app_state['investment_values']["Dupla Chance X2"] = round(valor_app3 * 0.4, 2)
         
-        # 🔥 CORREÇÃO CRÍTICA: SINCRONIZAR BANKROLL COM O TOTAL INVESTIDO
+        # 🔥 SINCRONIZAÇÃO IMEDIATA DO BANKROLL
         total_investido = sum(st.session_state.app_state['investment_values'].values())
-        
-        # Atualizar o bankroll para corresponder exatamente ao total investido
         st.session_state.app_state['total_bankroll'] = total_investido
         st.session_state.app_state['total_invested'] = total_investido
         
-        # 🔥 FORÇAR SINCRONIZAÇÃO DAS PROPORÇÕES
+        # 🔥 ATUALIZAR PROPORÇÕES
         update_proportions_from_investments()
         
         # 🔥 MARCAR COMO SINCRONIZADO
         st.session_state.app_state['distribution_applied'] = True
-        st.session_state.app_state['needs_sync'] = False
         
-        st.success(f"✅ Distribuição {distribuicao_nome.replace('_', ' ').title()} aplicada! Bankroll: R$ {total_investido:.2f}")
+        st.success(f"✅ {distribuicao_nome.replace('_', ' ').title()} aplicada! Total: R$ {total_investido:.2f}")
         
     except Exception as e:
-        st.error(f"❌ Erro ao aplicar valores: {str(e)}")
+        st.error(f"❌ Erro crítico ao aplicar distribuição: {str(e)}")
         
 # =============================================
 # 🔧 FUNÇÃO AUXILIAR PARA VERIFICAR CONEXÃO
@@ -1002,34 +1276,26 @@ def check_dinamico_connection():
 # =============================================
 
 def render_controls():
-    """Configuração inteligente - VERSÃO CORRIGIDA"""
+    """Configuração inteligente - CORREÇÃO DO ERRO DE NÓ"""
     
     # 🔥 STATUS DA CONEXÃO DINÂMICA
     connection_status = check_dinamico_connection()
     
     # 🔥 INDICADOR DE STATUS GLOBAL
     if st.session_state.app_state.get('distribution_applied'):
-        st.success("✅ **SISTEMA SINCRONIZADO** - Todas as abas mostram valores consistentes")
+        st.success("✅ **SISTEMA SINCRONIZADO** - Valores consistentes")
     else:
         st.warning("⚠️ **SELECIONE UMA DISTRIBUIÇÃO PARA APLICAR OS VALORES**")
     
     # 🔥 EXIBIR STATUS DA CONEXÃO DINÂMICA
     st.info(f"**Status do Módulo Dinâmico:** {connection_status['status']} - {connection_status['message']}")
     
-    if connection_status['status'] != "✅ CONECTADO":
-        st.warning("""
-        **📋 Para funcionalidades COMPLETAS de hedge dinâmico:**
-        1. Certifique-se de que `dinamico.py` está na mesma pasta
-        2. Reinicie a aplicação  
-        3. Todas as funcionalidades serão carregadas automaticamente
-        """)
-        
     # 🔥 SINCRONIZAÇÃO INICIAL GARANTIDA
     sync_bankroll_values()
     
     st.subheader("⚙️ Configuração Inteligente de Apostas - Sistema Conquistador")
     
-    # Abas principais - CORREÇÃO: REMOVIDA ABA DUPLICADA
+    # Abas principais
     tab1, tab2 = st.tabs(["💰 Investimentos", "💡 Recomendações"])
     
     with tab1:
@@ -1044,7 +1310,8 @@ def render_controls():
                     min_value=1.01,
                     value=float(current_odds),
                     step=0.01,
-                    key=f"odds_{bet_type.name}_{i}",
+                    # 🔥 CORREÇÃO: KEY ÚNICA E ESTÁVEL
+                    key=f"odds_main_{bet_type.name}_{i}",
                     label_visibility="visible"
                 )
                 if new_odds != current_odds:
@@ -1061,13 +1328,13 @@ def render_controls():
                     max_value=100.0,
                     value=float(current_investment),
                     step=0.10,
-                    key=f"inv_{bet_type.name}_{i}",
+                    # 🔥 CORREÇÃO: KEY ÚNICA E ESTÁVEL
+                    key=f"inv_main_{bet_type.name}_{i}",
                     label_visibility="visible"
                 )
                 if new_investment != current_investment:
                     st.session_state.app_state['investment_values'][bet_type.value] = float(new_investment)
                     st.session_state.app_state['distribution_applied'] = False
-                    st.session_state.app_state['needs_sync'] = True
                     st.rerun()
                     
         with col3:
@@ -1077,61 +1344,50 @@ def render_controls():
             current_total_invested = sum(st.session_state.app_state['investment_values'].values())
             current_bankroll = st.session_state.app_state['total_bankroll']
             
-            # 🔥 EXIBIR STATUS DE SINCRONIZAÇÃO CORRETO
-            diferenca = abs(current_bankroll - current_total_invested)
-            
-            if diferenca > 0.01:
+            # 🔥 EXIBIR STATUS DE SINCRONIZAÇÃO
+            if abs(current_bankroll - current_total_invested) > 0.01:
                 st.warning(f"""
-                **⚠️ Atenção - Valores Não Sincronizados**
+                **⚠️ Atenção**
                 - Bankroll: R$ {current_bankroll:.2f}
                 - Investido: R$ {current_total_invested:.2f}
-                - Diferença: R$ {diferenca:.2f}
                 """)
             else:
                 st.success(f"""
-                **✅ Sistema Sincronizado**
+                **✅ Sincronizado**
                 - Bankroll: R$ {current_bankroll:.2f}
-                - Investido: R$ {current_total_invested:.2f}
                 """)
             
-            # 🔥 INPUT DO BANKROLL CORRIGIDO
+            # 🔥 INPUT DO BANKROLL - CORREÇÃO DO VALOR
             new_bankroll = st.number_input(
                 "Ajustar Bankroll (R$)",
                 min_value=0.0,
                 max_value=1000.0,
-                value=float(current_total_invested),  # 🔥 SEMPRE MOSTRAR O VALOR INVESTIDO ATUAL
+                value=float(current_total_invested),  # 🔥 SEMPRE MOSTRAR O INVESTIDO ATUAL
                 step=1.0,
-                key="total_bankroll_input_unique"
+                key="bankroll_main_unique"
             )
             
-            # 🔥 SE O USUÁRIO ALTERAR, ATUALIZAR COM SINCRONIZAÇÃO
+            # 🔥 ATUALIZAR SE ALTERADO
             if new_bankroll != current_bankroll:
                 st.session_state.app_state['total_bankroll'] = new_bankroll
                 
-                # Se o novo bankroll for maior que o investido, redistribuir proporcionalmente
-                if new_bankroll > current_total_invested:
+                # Se o novo bankroll for diferente, redistribuir
+                if new_bankroll != current_total_invested:
                     update_investments_from_proportions()
-                # Se for menor, ajustar os investimentos para caber no novo bankroll
-                elif new_bankroll < current_total_invested:
-                    fator_ajuste = new_bankroll / current_total_invested if current_total_invested > 0 else 1
-                    for mercado in st.session_state.app_state['investment_values']:
-                        st.session_state.app_state['investment_values'][mercado] *= fator_ajuste
-                    update_proportions_from_investments()
                 
                 st.rerun()
 
-            # 🔥 BOTÃO DE SINCRONIZAÇÃO FORÇADA
+            # 🔥 BOTÃO DE SINCRONIZAÇÃO
             if st.button("🔄 Sincronizar Bankroll", 
                         use_container_width=True, 
                         type="primary",
-                        help="Ajusta o bankroll para igualar o total investido",
-                        key="sync_bankroll_btn"):
+                        key="sync_main_btn"):
                 
                 st.session_state.app_state['total_bankroll'] = current_total_invested
                 st.success(f"✅ Bankroll sincronizado: R$ {current_total_invested:.2f}")
                 st.rerun()
 
-            # 🔥 BOTÃO DE DISTRIBUIÇÃO AUTOMÁTICA
+            # 🔥 SEÇÃO DE DISTRIBUIÇÃO AUTOMÁTICA
             st.markdown("---")
             st.markdown("**🎯 Distribuição Automática**")
             
@@ -1142,16 +1398,17 @@ def render_controls():
                 "Selecionar Distribuição:",
                 options=list(distribuicao_manager.distribuicoes.keys()),
                 format_func=lambda x: x.replace("_", " ").title(),
-                key="distribuicao_select"
+                key="distribuicao_main_select"
             )
             
             if st.button("🎯 Aplicar Distribuição", 
                         use_container_width=True, 
                         type="secondary",
-                        key="aplicar_distribuicao_btn"):
+                        key="aplicar_distribuicao_main_btn"):
                 
                 with st.spinner("Aplicando distribuição..."):
                     try:
+                        # 🔥 CORREÇÃO: APLICAR DISTRIBUIÇÃO DIRETAMENTE
                         distribuicao = distribuicao_manager.aplicar_distribuicao(distribuicao_selecionada, capital_total)
                         
                         st.session_state.app_state['distribuicao_ativa'] = distribuicao_selecionada
@@ -1160,7 +1417,7 @@ def render_controls():
                         # Aplicar valores automaticamente
                         aplicar_valores_distribuicao_automaticamente(distribuicao, distribuicao_selecionada)
                         
-                        st.success(f"✅ **{distribuicao_selecionada.replace('_', ' ').title()}** aplicada com sucesso!")
+                        st.success(f"✅ **{distribuicao_selecionada.replace('_', ' ').title()}** aplicada!")
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ Erro ao aplicar distribuição: {str(e)}")
@@ -1879,12 +2136,15 @@ def substituir_nomes_texto(texto: str) -> str:
 # =============================================
 
 def main_optimized():
-    """Função principal otimizada com Sistema Conquistador integrado"""
+    """Função principal com correções aplicadas"""
     st.set_page_config(
         page_title="Analisador de Apostas - Sistema Conquistador PRO",
         page_icon="🔥",
         layout="wide"
     )
+    
+    # 🔥 ADICIONAR BOTÃO DE CORREÇÃO NO SIDEBAR
+    adicionar_botao_correcao()
     
     st.title("🎯 Analisador Inteligente - SISTEMA CONQUISTADOR PRO")
     st.markdown("### 🏆 **ESTRATÉGIAS OTIMIZADAS:** 4 Distribuições + Proteção Mais 0,5 Gols Azarão")
