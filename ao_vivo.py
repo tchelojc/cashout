@@ -856,18 +856,31 @@ def get_analyzer() -> BettingStrategyAnalyzer:
 # =============================================
 
 def sync_global_state():
-    """SINCRONIZAÇÃO GLOBAL - ORDEM MESTRA PARA TODOS OS COMPONENTES"""
-    sync_bankroll_values()
+    """SINCRONIZAÇÃO GLOBAL COMPLETA - CORRIGIDA"""
     
+    # 🔥 CALCULAR TOTAL INVESTIDO ATUAL
+    total_invested = sum(st.session_state.app_state['investment_values'].values())
+    
+    # 🔥 SE O BANKROLL FOR DIFERENTE DO TOTAL INVESTIDO, ATUALIZAR BANKROLL
+    if st.session_state.app_state['total_bankroll'] != total_invested:
+        st.session_state.app_state['total_bankroll'] = total_invested
+    
+    # 🔥 ATUALIZAR TODOS OS ESTADOS
+    st.session_state.app_state['total_invested'] = total_invested
     st.session_state.app_state['last_analysis'] = {
-        'total_invested': st.session_state.app_state['total_invested'],
+        'total_invested': total_invested,
         'total_bankroll': st.session_state.app_state['total_bankroll'],
         'timestamp': datetime.now().isoformat(),
         'sync_type': 'GLOBAL_COMMAND'
     }
     
+    # 🔥 ATUALIZAR PROPORÇÕES
+    update_proportions_from_investments()
+    
     st.session_state.app_state['distribution_applied'] = True
     st.session_state.app_state['global_sync_time'] = datetime.now().isoformat()
+    
+    st.success(f"✅ Sistema sincronizado! Bankroll: R$ {total_invested:.2f}")
 
 def sync_bankroll_values():
     """Sincroniza todos os valores de bankroll e investimento - VERSÃO CORRIGIDA"""
@@ -901,7 +914,7 @@ def sync_bankroll_values():
 # =============================================
 
 def aplicar_valores_distribuicao_automaticamente(distribuicao_detalhes, distribuicao_nome):
-    """Aplica valores da distribuição automaticamente"""
+    """Aplica valores da distribuição automaticamente COM SINCRONIZAÇÃO DO BANKROLL"""
     if not distribuicao_detalhes:
         return
     
@@ -940,11 +953,23 @@ def aplicar_valores_distribuicao_automaticamente(distribuicao_detalhes, distribu
         st.session_state.app_state['investment_values']["Mais 0,5 Gols Azarão"] = round(valor_app3 * 0.6, 2)
         st.session_state.app_state['investment_values']["Dupla Chance X2"] = round(valor_app3 * 0.4, 2)
         
-        # Ajustar bankroll
+        # 🔥 CORREÇÃO CRÍTICA: SINCRONIZAR BANKROLL COM O TOTAL INVESTIDO
         total_investido = sum(st.session_state.app_state['investment_values'].values())
+        
+        # Atualizar o bankroll para corresponder exatamente ao total investido
         st.session_state.app_state['total_bankroll'] = total_investido
         
-        st.success("✅ Valores da distribuição aplicados automaticamente!")
+        # 🔥 ATUALIZAR OS TOTAIS NO ESTADO
+        st.session_state.app_state['total_invested'] = total_investido
+        
+        # 🔥 FORÇAR SINCRONIZAÇÃO DAS PROPORÇÕES
+        update_proportions_from_investments()
+        
+        # 🔥 MARCAR COMO SINCRONIZADO
+        st.session_state.app_state['distribution_applied'] = True
+        st.session_state.app_state['needs_sync'] = False
+        
+        st.success(f"✅ Valores aplicados! Bankroll ajustado para R$ {total_investido:.2f}")
         
     except Exception as e:
         st.error(f"❌ Erro ao aplicar valores: {str(e)}")
@@ -1138,13 +1163,20 @@ def render_controls():
                     st.session_state.app_state['needs_sync'] = True
                     
                     st.rerun()
-
+                    
+        # No render_controls(), dentro da col3, substituir esta parte:
         with col3:
             st.markdown("**🏦 Gerenciamento do Banco**")
             
             # 🔥 EXIBIR TOTAIS ATUAIS DE FORMA MAIS CLARA
             current_total_invested = sum(st.session_state.app_state['investment_values'].values())
             current_bankroll = st.session_state.app_state['total_bankroll']
+            
+            # 🔥 MOSTRAR STATUS DE SINCRONIZAÇÃO
+            if abs(current_bankroll - current_total_invested) > 0.01:
+                st.warning(f"⚠️ Bankroll: R$ {current_bankroll:.2f} | Investido: R$ {current_total_invested:.2f}")
+            else:
+                st.success(f"✅ Sincronizado: R$ {current_bankroll:.2f}")
             
             new_bankroll = st.number_input(
                 "Ajustar Bankroll (R$)",
@@ -1154,6 +1186,8 @@ def render_controls():
                 step=1.0,
                 key="total_bankroll_input_unique"
             )
+            
+            # 🔥 SE O USUÁRIO ALTERAR MANUALMENTE, ATUALIZAR PROPORÇÕES
             if new_bankroll != current_bankroll:
                 st.session_state.app_state['total_bankroll'] = new_bankroll
                 update_investments_from_proportions()
