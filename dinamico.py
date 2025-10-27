@@ -820,23 +820,6 @@ class OperationMemoryManager:
         self.operations: List[OperationMemory] = []
         self.current_operation_id = None
         self.worksheet = None
-        self._init_sheets_connection()
-    
-    def _init_sheets_connection(self):
-        """Inicializa conexão com Google Sheets com verificação robusta"""
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                self.worksheet = init_google_sheets_dynamic()
-                if self.worksheet:
-                    st.success("✅ Conexão Google Sheets estabelecida com sucesso!")
-                    break
-                else:
-                    st.warning(f"⚠️ Tentativa {attempt + 1}/{max_retries}: Google Sheets não disponível")
-            except Exception as e:
-                st.warning(f"⚠️ Tentativa {attempt + 1}/{max_retries} falhou: {e}")
-                if attempt == max_retries - 1:
-                    st.error("❌ Falha na conexão com Google Sheets após múltiplas tentativas")
                     
     def start_new_operation(self, scenario: str, profits: Dict[str, float], total_investment: float, match_context: MatchContext = None) -> str:
         """Inicia uma nova operação com ID único e sincronização"""
