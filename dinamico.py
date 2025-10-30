@@ -812,6 +812,110 @@ Baseado no **GOL DO FAVORITO** aos {minute}' (Placar: {current_score}), forneça
         return prompt
 
 # =============================
+# SISTEMA DE MEMÓRIA SINCRONIZADO
+# =============================
+
+class OperationMemoryManager:
+    def __init__(self):
+        self.operations: List[OperationMemory] = []
+        self.current_operation_id = None
+        self.worksheet = None
+                    
+    def start_new_operation(self, scenario: str, profits: Dict[str, float], total_investment: float, match_context: MatchContext = None) -> str:
+        """Inicia uma nova operação com ID único e sincronização"""
+        operation_id = f"DYN_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        self.current_operation_id = operation_id
+        
+        new_operation = OperationMemory(
+            operation_id=operation_id,
+            timestamp=datetime.now(),
+            scenario=scenario,
+            profits_before=profits.copy(),
+            ia_analysis=None,
+            hedge_bets=[],
+            total_investment=total_investment,
+            status=OperationStatus.PENDING,
+            match_context=match_context
+        )
+        
+        self.operations.append(new_operation)
+        return operation_id
+    
+    def save_ia_analysis(self, analysis: IAAnalysis):
+        """Salva análise da IA para operação atual"""
+        if self.current_operation_id:
+            for op in self.operations:
+                if op.operation_id == self.current_operation_id:
+                    op.ia_analysis = analysis
+                    break
+    
+    def save_hedge_bets(self, hedge_bets: List[HedgeBet]):
+        """Salva apostas de hedge para operação atual com sincronização"""
+        if self.current_operation_id:
+            for op in self.operations:
+                if op.operation_id == self.current_operation_id:
+                    op.hedge_bets = hedge_bets
+                    op.status = OperationStatus.EXECUTED
+                    
+                    # SINCRONIZAR COM GOOGLE SHEETS
+                    if self.worksheet:
+                        salvar_operacao_dinamica_sheets(self.worksheet, op)
+                    
+                    break
+    
+    def add_learning_note(self, note: str):
+        """Adiciona nota de aprendizado para operação atual"""
+        if self.current_operation_id:
+            for op in self.operations:
+                if op.operation_id == self.current_operation_id:
+                    timestamped_note = f"{datetime.now().strftime('%H:%M:%S')}: {note}"
+                    op.learning_notes.append(timestamped_note)
+                    break
+    
+    def add_generated_prompt(self, prompt: str):
+        """Adiciona prompt gerado para operação atual"""
+        if self.current_operation_id:
+            for op in self.operations:
+                if op.operation_id == self.current_operation_id:
+                    op.generated_prompts.append({
+                        'timestamp': datetime.now(),
+                        'prompt': prompt
+                    })
+                    break
+    
+    def get_operation_history(self) -> List[OperationMemory]:
+        """Retorna histórico de operações ordenado por timestamp"""
+        return sorted(self.operations, key=lambda x: x.timestamp, reverse=True)
+    
+    def get_operation_by_id(self, operation_id: str) -> Optional[OperationMemory]:
+        """Busca operação por ID"""
+        for op in self.operations:
+            if op.operation_id == operation_id:
+                return op
+        return None
+    
+    def get_last_operation(self) -> Optional[OperationMemory]:
+        """Retorna a última operação executada"""
+        if self.operations:
+            return sorted(self.operations, key=lambda x: x.timestamp, reverse=True)[0]
+        return None
+    
+    def sync_all_operations_to_sheets(self):
+        """Sincroniza todas as operações para o Google Sheets"""
+        if not self.worksheet:
+            return False
+        
+        try:
+            for op in self.operations:
+                if op.status == OperationStatus.EXECUTED:
+                    salvar_operacao_dinamica_sheets(self.worksheet, op)
+            
+            return True
+        except Exception as e:
+            st.error(f"Erro na sincronização completa: {str(e)}")
+            return False
+
+# =============================
 # ANALISADOR DE IA SINCRONIZADO
 # =============================
 
@@ -2218,6 +2322,12 @@ def continue_operation_from_id(operation_id: str) -> bool:
     st.session_state.hedge_manager.applied_strategy = f"Continuação_{operation_id}"
     
     return True
+
+def sync_dynamic_operations():
+    """Sincroniza todas as operações dinâmicas com Google Sheets"""
+    if "hedge_manager" in st.session_state:
+        return st.session_state.hedge_manager.memory_manager.sync_all_operations_to_sheets()
+    return False
 
 # =============================
 # COMPATIBILIDADE
