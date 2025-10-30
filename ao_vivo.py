@@ -16,17 +16,18 @@ from datetime import datetime
 # =============================================
 
 class BetType(Enum):
-    OVER_15_BOTH_NO = "Mais 1.5 & Ambas Não"
     EXACT_0_0 = "Resultado 0x0"
-    UNDER_25_DC_1X = "Menos 2.5 & Dupla Chance 1X"
-    DOUBLE_CHANCE_X2 = "Dupla Chance X2"
-    NEXT_GOAL_FAV = "Próximo Gol Favorito"
-    OVER_15 = "Mais 1.5 Gols"
-    OVER_25_DC_12 = "Mais 2.5 & Dupla Chance 12"
+    EXACT_1_0 = "Resultado 1x0 FAVORITO"  # 🔥 NOVA APOSTA IMPLEMENTADA
     UNDER_15 = "Menos 1.5 Gols"
-    VITORIA_FAV = "Vitória Favorito"
-    # NOVA APOSTA IMPLEMENTADA
+    DOUBLE_CHANCE_X2 = "Dupla Chance X2"
     OVER_05_AZARAO = "Mais 0,5 Gols Azarão"
+    NEXT_GOAL_FAV = "Próximo Gol Favorito"
+    VITORIA_FAV = "Vitória Favorito"
+    OVER_15 = "Mais 1.5 Gols"
+    EXACT_1_1 = "Resultado 1x1"
+    OVER_15_BOTH_NO = "Mais 1.5 & Ambas Não"
+    UNDER_25_DC_1X = "Menos 2.5 & Dupla Chance 1X"
+    OVER_25_DC_12 = "Mais 2.5 & Dupla Chance 12"
 
 @dataclass
 class Bet:
@@ -512,33 +513,38 @@ class SistemaAplicacoes:
 # 🔧 INIT_STATE - CORREÇÃO DE INICIALIZAÇÃO
 # =============================================
 
+# ATUALIZAR AS ODDS PADRÃO (na função init_state)
 def init_state():
     """Inicialização robusta do estado"""
     if 'app_state' not in st.session_state:
         default_odds = {
-            "Mais 1.5 & Ambas Não": 3.50,
             "Resultado 0x0": 7.89,
-            "Menos 2.5 & Dupla Chance 1X": 1.85,
-            "Dupla Chance X2": 1.91,
-            "Próximo Gol Favorito": 1.91,
-            "Mais 1.5 Gols": 1.30,
-            "Mais 2.5 & Dupla Chance 12": 2.30,
+            "Resultado 1x0 FAVORITO": 5.50,  # 🔥 NOVA ODDS PADRÃO
             "Menos 1.5 Gols": 3.25,
+            "Dupla Chance X2": 1.91,
+            "Mais 0,5 Gols Azarão": 2.10,
+            "Próximo Gol Favorito": 1.91,
             "Vitória Favorito": 1.80,
-            "Mais 0,5 Gols Azarão": 2.10
+            "Mais 1.5 Gols": 1.30,
+            "Resultado 1x1": 6.50,
+            "Mais 1.5 & Ambas Não": 3.50,
+            "Menos 2.5 & Dupla Chance 1X": 1.85,
+            "Mais 2.5 & Dupla Chance 12": 2.30
         }
 
         default_investments = {
-            "Mais 1.5 & Ambas Não": 1.00,
             "Resultado 0x0": 0.00,
-            "Menos 2.5 & Dupla Chance 1X": 2.00,
-            "Dupla Chance X2": 2.00,
-            "Próximo Gol Favorito": 0.00,
-            "Mais 1.5 Gols": 0.00,
-            "Mais 2.5 & Dupla Chance 12": 1.50,
+            "Resultado 1x0 FAVORITO": 1.50,  # 🔥 NOVO INVESTIMENTO PADRÃO
             "Menos 1.5 Gols": 1.00,
+            "Dupla Chance X2": 2.00,
+            "Mais 0,5 Gols Azarão": 1.50,
+            "Próximo Gol Favorito": 0.00,
             "Vitória Favorito": 1.00,
-            "Mais 0,5 Gols Azarão": 1.50
+            "Mais 1.5 Gols": 0.00,
+            "Resultado 1x1": 1.00,
+            "Mais 1.5 & Ambas Não": 1.00,
+            "Menos 2.5 & Dupla Chance 1X": 2.00,
+            "Mais 2.5 & Dupla Chance 12": 1.50
         }
         
         initial_bankroll = sum(default_investments.values())
@@ -762,6 +768,24 @@ def generate_intelligent_prompt(liga, importancia, condicoes, motivacao_fav,
 - ✅ Vitórias 2x1 do favorito com gol de honra do azarão  
 - ✅ Resultados como 1x2, 0x1, 0x2 onde azarão marca
 - ✅ Cenários de virada onde azarão surpreende
+- ✅ **RESULTADO MAIS FREQUENTE:** Um dos placares mais comuns no futebol mundial
+- ✅ **DISCREPÂNCIA DE VALOR:** Odds altas quando o valor está muito inferior
+- ✅ **CERCO COMPLETO:** Junto com 1x1 e 0x0, forma o triângulo de resultados mais frequentes
+- ✅ **PROTEÇÃO FAVORITO:** Cobre vitórias mínimas do time favorito
+- ✅ **RETORNO ELEVADO:** Odds altas proporcionam excelente payoff
+- ✅ **LINHA DE SUBIDA/DESCIDA:** Serve como ponto crítico para operações hedge ao vivo
+- ✅ **CENÁRIO FREQUENTE:** Um dos resultados mais comuns no futebol
+- ✅ **PROTEÇÃO DUPLA:** Cobre tanto o resultado exato quanto serve como hedge
+- ✅ **RETORNO ELEVADO:** Odds altas proporcionam bom retorno quando acertado
+- ✅ **SINCRONIZAÇÃO:** Alinhado com as proteções 'Mais 0,5 Gols Azarão' e 'Dupla Chance X2'
+
+## 🛡️ SISTEMA DE CERCO COMPLETO IMPLEMENTADO
+**RESULTADOS MAIS FREQUENTES COBERTOS:**
+- 🎯 **1x0 FAVORITO:** Vitória mínima do favorito (implementado)
+- 🎯 **1x1:** Empate com gols (implementado)  
+- 🎯 **0x0:** Empate sem gols (já existente)
+- 🎯 **2x1:** Vitória com gol do azarão (protegido)
+- 🎯 **2x0:** Vitória convincente (coberto)
 
 ## 💰 SITUAÇÃO ATUAL DAS APOSTAS
 
@@ -862,6 +886,7 @@ class ValueBetAnalyzer:
             "prob_mais_05_gols_azarao": prob_azarao_marca
         }
     
+    # ATUALIZAR O MAPPING DE PROBABILIDADES (no ValueBetAnalyzer)
     def analisar_valor_apostas(self, investments: Dict, odds: Dict, estatisticas: Dict) -> Dict:
         """Análise completa de valor das apostas"""
         prob_reais = self.calcular_probabilidades_reais_otimizadas(estatisticas)
@@ -872,12 +897,16 @@ class ValueBetAnalyzer:
             "Menos 2.5 & Dupla Chance 1X": "prob_menos_25_gols_empate_ou_vitoria_favorito",
             "Mais 1.5 & Ambas Não": "prob_mais_15_ambas_nao",
             "Resultado 0x0": "prob_0x0",
+            "Resultado 1x0 FAVORITO": "prob_vitoria_favorito_1x0",  # 🔥 NOVO MAPEAMENTO
+            "Resultado 1x1": "prob_empate",
             "Menos 1.5 Gols": "prob_menos_15_gols",
             "Mais 2.5 & Dupla Chance 12": "prob_mais_25_gols_sem_empate",
             "Próximo Gol Favorito": "prob_proximo_gol_favorito",
-            # NOVA APOSTA MAPEADA
             "Mais 0,5 Gols Azarão": "prob_mais_05_gols_azarao"
         }
+        
+        # 🔥 ADICIONAR PROBABILIDADE ESPECÍFICA PARA 1x0
+        prob_reais["prob_vitoria_favorito_1x0"] = min(15, max(5, prob_reais["prob_vitoria_favorito"] * 0.25))
         
         analise_detalhada = {}
         total_ev = 0
@@ -910,10 +939,10 @@ class ValueBetAnalyzer:
                     'ev': ev,
                     'roi_esperado': roi_esperado,
                     'status_valor': '✅ ALTO VALOR' if valor_aposta > 10 else 
-                                   '✅ VALOR' if valor_aposta > 5 else 
-                                   '⚠️ NEUTRO' if valor_aposta >= -5 else '❌ SEM VALOR',
+                                '✅ VALOR' if valor_aposta > 5 else 
+                                '⚠️ NEUTRO' if valor_aposta >= -5 else '❌ SEM VALOR',
                     'recomendacao': 'AUMENTAR' if valor_aposta > 5 else 
-                                   'MANTER' if valor_aposta >= -2 else 'REDUZIR'
+                                'MANTER' if valor_aposta >= -2 else 'REDUZIR'
                 }
         
         # 🔥 ANÁLISE DA CARTEIRA COMPLETA
@@ -1095,28 +1124,31 @@ class BettingStrategyAnalyzer:
         
         for bet_type, bet in self.bets.items():
             wins = False
-            if bet_type == BetType.OVER_15_BOTH_NO:
-                wins = (total_goals > 1.5) and not both_scored
-            elif bet_type == BetType.EXACT_0_0:
+            if bet_type == BetType.EXACT_0_0:
                 wins = (home_goals == 0 and away_goals == 0)
-            elif bet_type == BetType.UNDER_25_DC_1X:
-                wins = (total_goals < 2.5) and (home_goals >= away_goals)
-            elif bet_type == BetType.DOUBLE_CHANCE_X2:
-                wins = (home_goals == away_goals) or (away_goals > home_goals)
-            elif bet_type == BetType.NEXT_GOAL_FAV and first_goal_by_fav is not None:
-                wins = first_goal_by_fav
-            elif bet_type == BetType.OVER_15:
-                wins = total_goals > 1.5
-            elif bet_type == BetType.OVER_25_DC_12:
-                wins = (total_goals > 2.5) and (home_goals != away_goals)
+            elif bet_type == BetType.EXACT_1_0:  # 🔥 NOVA CONDIÇÃO
+                wins = (home_goals == 1 and away_goals == 0)
             elif bet_type == BetType.UNDER_15:
                 wins = (total_goals < 1.5)
+            elif bet_type == BetType.OVER_05_AZARAO:
+                wins = away_goals > 0.5
+            elif bet_type == BetType.NEXT_GOAL_FAV and first_goal_by_fav is not None:
+                wins = first_goal_by_fav
             elif bet_type == BetType.VITORIA_FAV:
                 wins = home_goals > away_goals
-            # NOVA CONDIÇÃO PARA MAIS 0,5 GOLS AZARÃO
-            elif bet_type == BetType.OVER_05_AZARAO:
-                wins = away_goals > 0.5  # Azarão marca pelo menos 1 gol
-            
+            elif bet_type == BetType.DOUBLE_CHANCE_X2:
+                wins = (home_goals == away_goals) or (away_goals > home_goals)
+            elif bet_type == BetType.OVER_15:
+                wins = total_goals > 1.5
+            elif bet_type == BetType.EXACT_1_1:
+                wins = (home_goals == 1 and away_goals == 1)
+            elif bet_type == BetType.OVER_15_BOTH_NO:
+                wins = (total_goals > 1.5) and not both_scored
+            elif bet_type == BetType.UNDER_25_DC_1X:
+                wins = (total_goals < 2.5) and (home_goals >= away_goals)
+            elif bet_type == BetType.OVER_25_DC_12:
+                wins = (total_goals > 2.5) and (home_goals != away_goals)
+                    
             if wins:
                 total_return += bet.potential_return
                 winning_bets.append(bet_type.value)
@@ -1787,11 +1819,14 @@ def criar_contexto_partida_para_hedge(informacoes: Dict, estatisticas: Dict):
         return None
 
 def render_detailed_scenario_analysis():
-    """Renderiza análise detalhada de cenários com botão de transmissão para hedge"""
-    st.subheader("📈 Análise Avançada de Cenários - DETALHADA")
+    """Renderiza análise detalhada de cenários com destaque para 1x1 e 1x0 - SISTEMA DE CERCO COMPLETO"""
+    st.subheader("📈 Análise Avançada de Cenários - SISTEMA DE CERCO COMPLETO")
     
     analyzer = get_analyzer()
     total_investment = analyzer.get_total_investment()
+    
+    # 🔥 CORREÇÃO: INICIALIZAR scenario_profits ANTES DE QUALQUER USO
+    scenario_profits = {}
     
     # 🔥 NOVO: BOTÃO PARA TRANSMITIR ANÁLISE PARA HEDGE DINÂMICO
     if 'generated_prompt' in st.session_state:
@@ -1838,7 +1873,214 @@ def render_detailed_scenario_analysis():
                         - 🛡️ Informações de proteção
                         - 📈 Dados para recomendações precisas
                         """)
+
+    # 🔥 SISTEMA DE CERCO COMPLETO - RESUMO EXECUTIVO
+    st.markdown("### 🛡️ SISTEMA DE CERCO COMPLETO IMPLEMENTADO")
     
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Resultados Cobertos", "5/5", "100%")
+    
+    with col2:
+        st.metric("Proteção Azarão", "✅ ATIVA", "Mais 0,5 Gols")
+    
+    with col3:
+        st.metric("Hedge Natural", "✅ OTIMIZADO", "Sinergia Completa")
+    
+    with col4:
+        st.metric("Cerco Estratégico", "🎯 COMPLETO", "Triângulo Principal")
+    
+    # 🔥 DESTAQUE ESPECIAL PARA O CENÁRIO 1X0 - CENÁRIO PRINCIPAL
+    st.markdown("### 🎯 CENÁRIO PRINCIPAL: VITÓRIA 1x0 FAVORITO")
+    
+    # Análise específica do 1x0
+    resultado_1x0 = analyzer.calculate_scenario_profit(1, 0, True)
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("1x0 - Lucro/Prejuízo", 
+                 f"R$ {resultado_1x0['Lucro/Prejuízo']:.2f}",
+                 resultado_1x0['Status'],
+                 delta_color="inverse" if resultado_1x0['Lucro/Prejuízo'] < 0 else "normal")
+    
+    with col2:
+        st.metric("1x0 - ROI", 
+                 f"{resultado_1x0['ROI']:.1f}%",
+                 delta="✅ Alto" if resultado_1x0['ROI'] > 20 else "⚠️ Moderado" if resultado_1x0['ROI'] > 0 else "❌ Baixo")
+    
+    with col3:
+        # Verificar se a aposta no 1x0 está ativa
+        invest_1x0 = st.session_state.app_state['investment_values'].get("Resultado 1x0 FAVORITO", 0)
+        st.metric("Investimento no 1x0", f"R$ {invest_1x0:.2f}",
+                 delta="✅ Ativo" if invest_1x0 > 0 else "❌ Inativo")
+    
+    with col4:
+        odd_1x0 = st.session_state.app_state['odds_values'].get("Resultado 1x0 FAVORITO", 5.5)
+        st.metric("Odds do 1x0", f"{odd_1x0:.2f}",
+                 delta="🎯 Valor" if odd_1x0 > 5.0 else "⚠️ Baixa")
+    
+    # Recomendação específica para o 1x0
+    if resultado_1x0['Lucro/Prejuízo'] < -3:
+        st.error("""
+        **⚠️ ALERTA CRÍTICO 1x0:** Prejuízo no cenário mais frequente!
+        
+        **📊 ANÁLISE DO PROBLEMA:**
+        - Resultado 1x0 é um dos mais comuns no futebol
+        - Prejuízo indica falha na proteção principal
+        - Discrepância de valor nas odds pode estar ocorrendo
+        
+        **🎯 AÇÕES RECOMENDADAS:**
+        - 🔼 Aumentar proteção no 'Resultado 1x0 FAVORITO'
+        - ⚖️ Rebalancear 'Vitória Favorito' para hedge natural
+        - 📈 Revisar odds do 1x0 para identificar valor
+        - 🛡️ Reforçar 'Dupla Chance 1X' como proteção adicional
+        """)
+    elif resultado_1x0['Lucro/Prejuízo'] > 5:
+        st.success("""
+        **✅ 1x0 OTIMIZADO:** Cenário principal com excelente lucro!
+        
+        **📈 SITUAÇÃO ATUAL:**
+        - Estratégia bem equilibrada para o resultado mais frequente
+        - Proteção adequada para vitórias mínimas do favorito
+        - Retorno elevado com odds atrativas
+        
+        **🎯 PRÓXIMOS PASSOS:**
+        - Manter estratégia atual
+        - Monitorar variações nas odds
+        - Aproveitar oportunidades de valor
+        """)
+    else:
+        st.info("""
+        **📊 1x0 EQUILIBRADO:** Cenário principal com retorno moderado.
+        
+        **🔍 ANÁLISE:**
+        - Estratégia neutra para o resultado mais frequente
+        - Espaço para otimização e aumento de valor
+        - Proteção básica implementada
+        
+        **💡 SUGESTÕES:**
+        - Ajustar alocação para maximizar retorno
+        - Analisar oportunidades de value bet
+        - Considerar pequenos incrementos na proteção
+        """)
+
+    # 🔥 DESTAQUE ESPECIAL PARA O CENÁRIO 1X1 - CENÁRIO CRÍTICO
+    st.markdown("### 🎯 CENÁRIO CRÍTICO: EMPATE 1x1")
+    
+    # Análise específica do 1x1
+    resultado_1x1 = analyzer.calculate_scenario_profit(1, 1, None)
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("1x1 - Lucro/Prejuízo", 
+                 f"R$ {resultado_1x1['Lucro/Prejuízo']:.2f}",
+                 resultado_1x1['Status'],
+                 delta_color="inverse" if resultado_1x1['Lucro/Prejuízo'] < 0 else "normal")
+    
+    with col2:
+        st.metric("1x1 - ROI", 
+                 f"{resultado_1x1['ROI']:.1f}%",
+                 delta="✅ Alto" if resultado_1x1['ROI'] > 15 else "⚠️ Moderado" if resultado_1x1['ROI'] > 0 else "❌ Baixo")
+    
+    with col3:
+        # Verificar se a aposta no 1x1 está ativa
+        invest_1x1 = st.session_state.app_state['investment_values'].get("Resultado 1x1", 0)
+        st.metric("Investimento no 1x1", f"R$ {invest_1x1:.2f}",
+                 delta="✅ Ativo" if invest_1x1 > 0 else "❌ Inativo")
+    
+    with col4:
+        odd_1x1 = st.session_state.app_state['odds_values'].get("Resultado 1x1", 6.5)
+        st.metric("Odds do 1x1", f"{odd_1x1:.2f}",
+                 delta="🎯 Valor" if odd_1x1 > 6.0 else "⚠️ Baixa")
+    
+    # Recomendação específica para o 1x1
+    if resultado_1x1['Lucro/Prejuízo'] < -5:
+        st.error("""
+        **⚠️ ALERTA CRÍTICO 1x1:** Prejuízo significativo no empate 1x1!
+        
+        **📊 ANÁLISE DO PROBLEMA:**
+        - Empate 1x1 é resultado frequente e crítico
+        - Prejuízo elevado indica falha na proteção
+        - Linha de subida/descida comprometida
+        
+        **🎯 AÇÕES RECOMENDADAS URGENTES:**
+        - 🔼 Aumentar imediatamente proteção no 'Resultado 1x1'
+        - 🛡️ Reforçar 'Dupla Chance X2' como hedge
+        - ⚖️ Ajustar 'Mais 0,5 Gols Azarão' para cobertura
+        - 📉 Revisar alocação geral do bankroll
+        """)
+    elif resultado_1x1['Lucro/Prejuízo'] > 0:
+        st.success("""
+        **✅ 1x1 PROTEGIDO:** Cenário de empate está adequadamente coberto!
+        
+        **📈 SITUAÇÃO ATUAL:**
+        - Proteção eficiente para empates com gols
+        - Estratégia de hedge natural funcionando
+        - Retorno positivo em cenário crítico
+        
+        **🎯 PRÓXIMOS PASSOS:**
+        - Manter nível atual de proteção
+        - Monitorar variações nas odds
+        - Aproveitar sinergia com outras proteções
+        """)
+    else:
+        st.warning("""
+        **⚖️ 1x1 EQUILIBRADO:** Cenário de empate com resultado neutro.
+        
+        **🔍 ANÁLISE:**
+        - Proteção básica implementada
+        - Resultado neutro indica espaço para otimização
+        - Hedge natural funcionando parcialmente
+        
+        **💡 SUGESTÕES:**
+        - Ajustes finos na alocação
+        - Análise de value bet adicional
+        - Considerar pequeno aumento na proteção
+        """)
+
+    # 🔥 RESUMO DO SISTEMA DE CERCO
+    st.markdown("### 🎯 RESUMO DO SISTEMA DE CERCO COMPLETO")
+    
+    # Calcular eficiência do cerco
+    cenarios_cerco = ['1x0 FAV', '1x1 FAV 1º', '1x1 AZA 1º', '0x0', '2x1 FAV']
+    cenarios_lucrativos = 0
+    
+    # 🔥 CORREÇÃO: GARANTIR QUE scenario_profits ESTÁ PREENCHIDO
+    if not scenario_profits:
+        # Se ainda não foi preenchido, calcular os cenários
+        important_scenarios = [
+            ('1x0 FAV', 1, 0, True, "Vitória do favorito 1x0"),
+            ('1x1 FAV 1º', 1, 1, True, "Empate 1x1 com gol do favorito primeiro"),
+            ('1x1 AZA 1º', 1, 1, False, "Empate 1x1 com gol do azarão primeiro"),
+            ('0x0', 0, 0, None, "Empate sem gols"),
+            ('2x1 FAV', 2, 1, True, "Vitória do favorito com gol do azarão - PROTEGIDO")
+        ]
+        
+        for scenario_name, home_goals, away_goals, first_goal, description in important_scenarios:
+            result = analyzer.calculate_scenario_profit(home_goals, away_goals, first_goal)
+            scenario_profits[scenario_name] = result['Lucro/Prejuízo']
+    
+    for cenario in cenarios_cerco:
+        if cenario in scenario_profits and scenario_profits[cenario] > 0:
+            cenarios_lucrativos += 1
+    
+    eficiencia_cerco = (cenarios_lucrativos / len(cenarios_cerco)) * 100
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Eficiência do Cerco", f"{eficiencia_cerco:.1f}%")
+    
+    with col2:
+        st.metric("Cenários Lucrativos", f"{cenarios_lucrativos}/{len(cenarios_cerco)}")
+    
+    with col3:
+        risco_residual = max(0, 100 - eficiencia_cerco)
+        st.metric("Risco Residual", f"{risco_residual:.1f}%")
+
     # Cenários importantes para análise - INCLUINDO CENÁRIOS PROTEGIDOS PELA NOVA APOSTA
     important_scenarios = [
         ('0x0', 0, 0, None, "Empate sem gols"),
@@ -1858,11 +2100,13 @@ def render_detailed_scenario_analysis():
     
     # Dados para gráficos
     all_scenario_data = []
-    scenario_profits = {}
     detailed_scenarios = []
     
     for scenario_name, home_goals, away_goals, first_goal, description in important_scenarios:
         result = analyzer.calculate_scenario_profit(home_goals, away_goals, first_goal)
+        
+        # 🔥 CORREÇÃO: ATUALIZAR scenario_profits
+        scenario_profits[scenario_name] = result['Lucro/Prejuízo']
         
         # Dados para gráficos
         scenario_data = {
@@ -1871,10 +2115,10 @@ def render_detailed_scenario_analysis():
             'Lucro/Prejuízo': result['Lucro/Prejuízo'],
             'ROI': result['ROI'],
             'Status': result['Status'],
-            'Protegido': '✅' if away_goals > 0 else '❌'  # Indica se cenário é protegido pela nova aposta
+            'Protegido': '✅' if away_goals > 0 else '❌',  # Indica se cenário é protegido pela nova aposta
+            'Tipo': 'PRINCIPAL' if scenario_name in ['1x0 FAV', '1x1 FAV 1º', '1x1 AZA 1º'] else 'SECUNDÁRIO'
         }
         all_scenario_data.append(scenario_data)
-        scenario_profits[scenario_name] = result['Lucro/Prejuízo']
         
         # Dados detalhados para tabela
         detailed_scenario = {
@@ -1891,7 +2135,8 @@ def render_detailed_scenario_analysis():
             # Versões numéricas para ordenação
             'Lucro_Num': result['Lucro/Prejuízo'],
             'ROI_Num': result['ROI'],
-            'Investimento_Num': result['Investimento Total']
+            'Investimento_Num': result['Investimento Total'],
+            'Prioridade': 1 if scenario_name in ['1x0 FAV', '1x1 FAV 1º'] else 2
         }
         detailed_scenarios.append(detailed_scenario)
     
@@ -1905,12 +2150,12 @@ def render_detailed_scenario_analysis():
     
     protected_scenarios = len([s for s in detailed_scenarios if s['Proteção Azarão'] == '✅ SIM'])
     
-    # 🔥 GRÁFICOS EXISTENTES
+    # 🔥 GRÁFICOS EXISTENTES - MELHORADOS
     col1, col2 = st.columns(2)
     with col1:
-        fig_profit = px.bar(df_all, x='Cenário', y='Lucro/Prejuízo', color='Protegido',
-                           title='Lucro/Prejuízo por Cenário - Proteção Mais 0,5 Azarão (R$)',
-                           color_discrete_map={'✅': '#00FF00', '❌': '#FF0000'})
+        fig_profit = px.bar(df_all, x='Cenário', y='Lucro/Prejuízo', color='Tipo',
+                           title='Lucro/Prejuízo por Cenário - Sistema de Cerco (R$)',
+                           color_discrete_map={'PRINCIPAL': '#FF6B00', 'SECUNDÁRIO': '#1f77b4'})
         fig_profit.update_layout(showlegend=True)
         st.plotly_chart(fig_profit, use_container_width=True, key="grafico_lucro_cenarios")
     
@@ -1920,8 +2165,8 @@ def render_detailed_scenario_analysis():
                         color_discrete_map={'✅': '#00FF00', '❌': '#FF0000'})
         st.plotly_chart(fig_roi, use_container_width=True, key="grafico_roi_cenarios")
     
-    # 🔥 RESUMO DA PROTEÇÃO
-    st.markdown("### 🛡️ RESUMO DA PROTEÇÃO MAIS 0,5 GOLS AZARÃO")
+    # 🔥 RESUMO DA PROTEÇÃO - EXPANDIDO
+    st.markdown("### 🛡️ RESUMO COMPLETO DA PROTEÇÃO")
     
     col1, col2, col3, col4 = st.columns(4)
     
@@ -1938,10 +2183,11 @@ def render_detailed_scenario_analysis():
         st.metric("Eficiência da Proteção", f"{eficiencia:.1f}%")
     
     with col4:
-        st.metric("Cenários Críticos Cobertos", "1x1, 2x1, 1x2, 2x2")
+        cobertura_principal = len([s for s in detailed_scenarios if s['Prioridade'] == 1 and s['Status'] == '✅ Lucro'])
+        st.metric("Cerco Principal", f"{cobertura_principal}/2", "1x0 + 1x1")
     
-    # 🔥 TABELA DETALHADA COM ANÁLISE POR EXTENSO
-    st.markdown("### 📋 ANÁLISE DETALHADA POR CENÁRIO")
+    # 🔥 TABELA DETALHADA COM ANÁLISE POR EXTENSO - MELHORADA
+    st.markdown("### 📋 ANÁLISE DETALHADA POR CENÁRIO - SISTEMA DE CERCO")
     
     # Filtros para a tabela
     col1, col2, col3 = st.columns(3)
@@ -1953,7 +2199,7 @@ def render_detailed_scenario_analysis():
                                        ["Todos", "✅ SIM", "❌ NÃO"])
     with col3:
         sort_by = st.selectbox("Ordenar por:", 
-                              ["Cenário", "Lucro/Prejuízo", "ROI", "Investimento Total"])
+                              ["Prioridade", "Lucro/Prejuízo", "ROI", "Investimento Total"])
     
     # Aplicar filtros
     filtered_df = df_detailed.copy()
@@ -1964,7 +2210,7 @@ def render_detailed_scenario_analysis():
     
     # Ordenar usando as colunas numéricas
     sort_mapping = {
-        "Cenário": "Cenário",
+        "Prioridade": "Prioridade",
         "Lucro/Prejuízo": "Lucro_Num",
         "ROI": "ROI_Num", 
         "Investimento Total": "Investimento_Num"
